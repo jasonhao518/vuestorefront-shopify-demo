@@ -17,7 +17,7 @@ const config = {
     storeToken: process.env.SHOPIFY_STOREFRONT_TOKEN
   },
   serverMiddleware: [
-    { path: '/custom', handler: '~/server-middleware/custom-features.js' }
+    
   ],
   head: {
     title: 'Shopify | Vue Storefront Next',
