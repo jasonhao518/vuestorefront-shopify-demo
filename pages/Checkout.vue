@@ -5,7 +5,7 @@
         <SfSteps
           v-if="!isThankYou"
           :active="currentStepIndex"
-          :class="{ 'checkout__steps': true }"
+          class="checkout__steps"
           @change="handleStepClick"
         >
           <SfStep
@@ -33,7 +33,7 @@
 
 import { SfSteps, SfButton } from '@storefront-ui/vue';
 import CartPreview from '~/components/Checkout/CartPreview';
-import { computed } from '@vue/composition-api';
+import { computed, useRoute, useRouter } from '@nuxtjs/composition-api';
 
 const STEPS = {
   shipping: 'Shipping',
@@ -48,14 +48,16 @@ export default {
     SfSteps,
     CartPreview
   },
-  setup(props, context) {
-    const currentStep = computed(() => context.root.$route.path.split('/').pop());
+  setup() {
+    const route = useRoute();
+    const router = useRouter();
+    const currentStep = computed(() => route.value.path.split('/').pop());
     const currentStepIndex = computed(() => Object.keys(STEPS).findIndex(s => s === currentStep.value));
     const isThankYou = computed(() => currentStep.value === 'thank-you');
 
     const handleStepClick = (stepIndex) => {
       const key = Object.keys(STEPS)[stepIndex];
-      context.root.$router.push(`/checkout/${key}`);
+      router.push(`/checkout/${key}`);
     };
 
     return {
@@ -95,12 +97,11 @@ export default {
   }
   &__steps {
     --steps-content-padding: 0 var(--spacer-base);
+    ::v-deep .sf-steps__step.is-done  {
+      color: var(--c-primary);
+    }
     @include for-desktop {
       --steps-content-padding: 0;
-    }
-
-    &-auth::v-deep .sf-steps__step:first-child {
-      --steps-step-color: #e8e4e4;
     }
   }
 }

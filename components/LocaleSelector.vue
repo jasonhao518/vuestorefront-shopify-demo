@@ -1,13 +1,16 @@
 <template>
   <div class="container">
     <SfButton
-      data-cy="locale-select_change-langauge"
-      class="container__lang container__lang--selected"
-      @click="isLangModalOpen = !isLangModalOpen"
+        class="container__lang container__lang--selected"
+        @click="isLangModalOpen = !isLangModalOpen"
     >
-      <img :src="`https://cdn.shopify.com/s/files/1/0407/1902/4288/files/${locale}_20x20.jpg`" width="20" height="20"/>
+      <SfImage :src="`/icons/langs/${locale}.webp`" width="20" alt="Flag" />
     </SfButton>
-    <SfBottomModal :is-open="isLangModalOpen" title="Choose language" @click:close="isLangModalOpen = !isLangModalOpen">
+    <SfBottomModal
+      :is-open="isLangModalOpen"
+      title="Choose language"
+      @click:close="isLangModalOpen = !isLangModalOpen"
+    >
       <SfList>
         <SfListItem v-for="lang in availableLocales" :key="lang.code">
           <a :href="switchLocalePath(lang.code)">
@@ -16,7 +19,7 @@
                 <span>{{ lang.label }}</span>
               </template>
               <template #icon>
-                <img :src="`https://cdn.shopify.com/s/files/1/0407/1902/4288/files/${lang.code}_20x20.jpg`" width="20" height="20"/>
+                <SfImage :src="`/icons/langs/${lang.code}.webp`" width="20" alt="Flag" class="language__flag" />
               </template>
             </SfCharacteristic>
           </a>
@@ -26,7 +29,7 @@
   </div>
 </template>
 
-<script type="module">
+<script>
 import {
   SfImage,
   SfSelect,
@@ -35,8 +38,7 @@ import {
   SfBottomModal,
   SfCharacteristic
 } from '@storefront-ui/vue';
-import { ref, computed } from '@vue/composition-api';
-
+import { ref, computed } from '@nuxtjs/composition-api';
 export default {
   components: {
     SfImage,
@@ -50,7 +52,6 @@ export default {
     const { locales, locale } = context.root.$i18n;
     const isLangModalOpen = ref(false);
     const availableLocales = computed(() => locales.filter(i => i.code !== locale));
-
     return {
       availableLocales,
       locale,
@@ -67,7 +68,6 @@ export default {
   flex-wrap: nowrap;
   align-items: center;
   position: relative;
-
   .sf-bottom-modal {
     z-index: 2;
     left: 0;
@@ -75,26 +75,24 @@ export default {
       --bottom-modal-height: 100vh;
     }
   }
-
+  .sf-bottom-modal::v-deep .sf-bottom-modal__close {
+    position: var(--circle-icon-position, absolute);
+    top: var(--spacer-xs);
+    right: var(--spacer-xs);
+  }
   .sf-list {
     .language {
-      padding: var(--spacer-sm) 0;
+      padding: var(--spacer-sm);
+      &__flag {
+        margin-right: var(--spacer-sm);
+      }
     }
-
     @include for-desktop {
       display: flex;
     }
-
-    .sf-image {
-      --image-width: 20px;
-      margin-right: 1rem;
-      border: 1px solid var(--c-light);
-      border-radius: 50%;
-    }
   }
-
   &__lang {
-    --image-width: 20px;
+    width: 20px;
     --button-box-shadow: none;
     background: none;
     padding: 0 5px;

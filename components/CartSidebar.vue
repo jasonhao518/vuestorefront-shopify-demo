@@ -1,6 +1,7 @@
 <template>
   <div id="cart">
     <SfSidebar
+      v-e2e="'sidebar-cart'"
       :visible="isCartSidebarOpen"
       title="My Cart"
       class="sf-sidebar--right"
@@ -19,39 +20,39 @@
           <div class="collected-product-list">
             <transition-group name="sf-fade" tag="div">
               <SfCollectedProduct
-                data-cy="collected-product-cart-sidebar"
                 v-for="product in products"
+                v-e2e="'collected-product'"
                 :key="cartGetters.getItemSku(product)"
                 :image="cartGetters.getItemImage(product)"
                 :title="cartGetters.getItemName(product)"
-                :regular-price="
-                  $n(cartGetters.getItemPrice(product).regular, 'currency')
-                "
-                :special-price="
-                  cartGetters.getItemPrice(product).special &&
-                  $n(cartGetters.getItemPrice(product).special, 'currency')
-                "
+                :regular-price="$n(cartGetters.getItemPrice(product).regular, 'currency')"
+                :special-price="cartGetters.getItemPrice(product).special && $n(cartGetters.getItemPrice(product).special, 'currency')"
                 :stock="99999"
-                :qty="cartGetters.getItemQty(product)"
-                @input="updateItemQty({ product, quantity: $event })"
-                @click:remove="removeItem({ product })"
+                @click:remove="removeItem({ product: { id: product.id } })"
                 class="collected-product"
               >
                 <template #configuration>
                   <div class="collected-product__properties">
                     <SfProperty
-                      v-for="(
-                        attribute, key
-                      ) in cartGetters.getItemAttributes(product, [
-                        'color',
-                        'size',
-                      ])"
+                      v-for="(attribute, key) in cartGetters.getItemAttributes(product, ['color', 'size'])"
                       :key="key"
                       :name="key"
                       :value="attribute"
                     />
                   </div>
                 </template>
+                <template #input>
+                  <div class="sf-collected-product__quantity-wrapper">
+                    <SfQuantitySelector
+                      :disabled="loading"
+                      :qty="cartGetters.getItemQty(product)"
+                      class="sf-collected-product__quantity-selector"
+                      @input="updateQuantity({ product: { id: product.id }, quantity: Number($event) })"
+                    />
+                  </div>
+                </template>
+                <!-- @TODO: remove if https://github.com/vuestorefront/storefront-ui/issues/2022 is done -->
+                <template #more-actions>{{  }}</template>
               </SfCollectedProduct>
             </transition-group>
           </div>
@@ -77,29 +78,30 @@
         <transition name="sf-fade">
           <div v-if="totalItems">
             <SfProperty
-              name="Total price"
+              name="Subtotal price"
               class="sf-property--full-width sf-property--large my-cart__total-price"
             >
               <template #value>
-                <SfPrice :regular="$n(totals.subtotal, 'currency')" />
+                <SfPrice
+                  :regular="$n(totals.subtotal, 'currency')"
+                  :special="(totals.special !== totals.subtotal) ? $n(totals.special, 'currency') : 0"
+                />
               </template>
             </SfProperty>
-            <SfLink
-              :link="checkoutURL"
-            >
+            <nuxt-link :to="localePath({ name: 'shipping' })">
               <SfButton
                 class="sf-button--full-width color-secondary"
                 @click="toggleCartSidebar"
               >
-                {{ $t("Go to checkout") }}
+                {{ $t('Go to checkout') }}
               </SfButton>
-            </SfLink>
+            </nuxt-link>
           </div>
           <div v-else>
             <SfButton
               class="sf-button--full-width color-primary"
               @click="toggleCartSidebar"
-              >{{ $t("Go back shopping") }}</SfButton
+            >{{ $t('Go back shopping') }}</SfButton
             >
           </div>
         </transition>
@@ -107,7 +109,7 @@
     </SfSidebar>
   </div>
 </template>
-<script type="module">
+<script>
 import {
   SfSidebar,
   SfHeading,
@@ -117,12 +119,12 @@ import {
   SfPrice,
   SfCollectedProduct,
   SfImage,
-  SfLink
+  SfQuantitySelector
 } from '@storefront-ui/vue';
-import { computed } from '@vue/composition-api';
-import { useCart, useUser, cartGetters } from '@vue-storefront/shopify';
-import useUiState from '~/composables/useUiState';
-import { onSSR } from '@vue-storefront/core';
+import { computed } from '@nuxtjs/composition-api';
+import { useCart, cartGetters } from '@vue-storefront/commercetools';
+import { useUiState } from '~/composables';
+import debounce from 'lodash.debounce';
 
 export default {
   name: 'Cart',
@@ -135,31 +137,29 @@ export default {
     SfPrice,
     SfCollectedProduct,
     SfImage,
-    SfLink
+    SfQuantitySelector
   },
   setup() {
     const { isCartSidebarOpen, toggleCartSidebar } = useUiState();
-    const { cart, removeItem, updateItemQty, load: loadCart } = useCart();
-    const { isAuthenticated } = useUser();
+    const { cart, removeItem, updateItemQty, loading } = useCart();
     const products = computed(() => cartGetters.getItems(cart.value));
     const totals = computed(() => cartGetters.getTotals(cart.value));
     const totalItems = computed(() => cartGetters.getTotalItems(cart.value));
-    const checkoutURL = computed(() => cartGetters.getcheckoutURL(cart.value));
-    onSSR(async () => {
-      await loadCart();
-    });
+
+    const updateQuantity = debounce(async ({ product, quantity }) => {
+      await updateItemQty({ product, quantity });
+    }, 500);
 
     return {
-      isAuthenticated,
+      updateQuantity,
+      loading,
       products,
       removeItem,
-      updateItemQty,
       isCartSidebarOpen,
       toggleCartSidebar,
       totals,
       totalItems,
-      cartGetters,
-      checkoutURL
+      cartGetters
     };
   }
 };
@@ -167,6 +167,8 @@ export default {
 
 <style lang="scss" scoped>
 #cart {
+  --sidebar-z-index: 3;
+  --overlay-z-index: 3;
   @include for-desktop {
     & > * {
       --sidebar-bottom-padding: var(--spacer-base);
@@ -210,12 +212,8 @@ export default {
     padding: 0 var(--spacer-base);
   }
   &__image {
-    --image-width: 13.1875rem;
-    margin: 0 0 var(--spacer-xl) 7.5rem;
-    @include for-desktop {
-      --image-width: 23.3125rem;
-      margin: 0 0 var(--spacer-2xl) 7.5rem;
-    }
+    --image-width: 16rem;
+    margin: 0 0 var(--spacer-2xl) 7.5rem;
   }
   @include for-desktop {
     --heading-title-font-size: var(--font-size--xl);
@@ -227,7 +225,6 @@ export default {
 }
 .collected-product {
   margin: 0 0 var(--spacer-sm) 0;
-  --image-height: 12.5rem;
   &__properties {
     margin: var(--spacer-xs) 0 0 0;
     display: flex;

@@ -1,8 +1,8 @@
 <template>
   <div>
     <SfAddressPicker
-      :selected="String(currentAddressId)"
-      @input="setCurrentAddress($event)"
+      :selected="currentAddressId"
+      @change="setCurrentAddress($event)"
       class="shipping-addresses"
     >
       <SfAddress
@@ -11,26 +11,13 @@
         :key="userShippingGetters.getId(shippingAddress)"
         :name="String(userShippingGetters.getId(shippingAddress))"
       >
-        <span
-          >{{ userShippingGetters.getFirstName(shippingAddress) }} {{ userShippingGetters.getLastName(shippingAddress) }}</span
-        >
-        <span
-          >{{ userShippingGetters.getStreetName(shippingAddress) }}
-          {{ userShippingGetters.getApartmentNumber(shippingAddress) }}</span
-        >
-        <span>{{ userShippingGetters.getPostCode(shippingAddress) }}</span>
-        <span
-          >{{ userShippingGetters.getCity(shippingAddress)
-          }}{{ userShippingGetters.getProvince(shippingAddress) ? `, ${userShippingGetters.getProvince(shippingAddress)}` : '' }}</span
-        >
-        <span>{{ userShippingGetters.getCountry(shippingAddress)}}</span>
-        <span>{{ userShippingGetters.getPhone(shippingAddress) }}</span>
+        <UserShippingAddress :address="shippingAddress" />
       </SfAddress>
     </SfAddressPicker>
     <SfCheckbox
-      data-cy="shipping-details-checkbox_isDefault"
-      :selected="setAsDefault"
-      @change="$emit('changeSetAsDefault', $event)"
+      v-show="currentAddressId"
+      :selected="value"
+      @change="$emit('input', $event)"
       name="setAsDefault"
       label="Use this address as my default one."
       class="shipping-address-setAsDefault"
@@ -38,38 +25,44 @@
   </div>
 </template>
 
-<script type="module">
+<script>
 import {
   SfCheckbox,
   SfAddressPicker
 } from '@storefront-ui/vue';
-import { userShippingGetters } from '@vue-storefront/shopify';
+import UserShippingAddress from '~/components/UserShippingAddress';
+import { useUserShipping, userShippingGetters } from '@vue-storefront/commercetools';
 
 export default {
   name: 'UserShippingAddresses',
   props: {
     currentAddressId: {
-      type: Number,
+      type: String | Number,
       required: true
     },
-    setAsDefault: {
+    value: {
       type: Boolean,
-      required: true
-    },
-    shippingAddresses: {
-      type: Array,
       required: true
     }
   },
   components: {
     SfCheckbox,
-    SfAddressPicker
+    SfAddressPicker,
+    UserShippingAddress
   },
-  // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
   setup (_, { emit }) {
-    const setCurrentAddress = $event => emit('setCurrentAddress', $event);
+    const { shipping: userShipping } = useUserShipping();
+
+    const setCurrentAddress = async (addressId) => {
+      const selectedAddress = userShippingGetters.getAddresses(userShipping.value, { id: addressId });
+      if (!selectedAddress || !selectedAddress.length) {
+        return;
+      }
+      emit('setCurrentAddress', selectedAddress[0]);
+    };
 
     return {
+      shippingAddresses: userShippingGetters.getAddresses(userShipping.value),
       setCurrentAddress,
       userShippingGetters
     };

@@ -25,7 +25,11 @@
     "types": [
       "@types/node",
       "@nuxt/types",
-      "nuxt-i18n"
+      "nuxt-i18n",
+      "cypress"
     ]
-  }
+  },
+  "exclude": [
+    "node_modules"
+  ]
 }

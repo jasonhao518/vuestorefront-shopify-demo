@@ -12,10 +12,9 @@
           aria-label="Go to Apple Product"
           @click="() => {}"
         >
-          <img
+          <SfImage
             src="/homepage/apple.png"
-            width="174"
-            height="57"
+            alt="App store"
           />
         </SfButton>
         <SfButton
@@ -23,17 +22,16 @@
           aria-label="Go to Google Product"
           @click="() => {}"
         >
-          <img
+          <SfImage
             src="/homepage/google.png"
-            width="174"
-            height="57"
+            alt="Google play"
           />
         </SfButton>
       </div>
     </template>
   </SfBanner>
 </template>
-<script type="module">
+<script>
 import {
   SfBanner,
   SfImage,

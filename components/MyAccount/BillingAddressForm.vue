@@ -12,10 +12,9 @@
           class="form__element"
         >
           <SfInput
-            data-cy="billing-details-input_firstName"
             v-model="form.firstName"
             name="firstName"
-            label="First Name"
+            :label="$t('First Name')"
             required
             :valid="!errors[0]"
             :errorMessage="errors[0]"
@@ -27,10 +26,9 @@
           class="form__element"
         >
           <SfInput
-            data-cy="billing-details-input_lastName"
             v-model="form.lastName"
             name="lastName"
-            label="Last Name"
+            :label="$t('Last Name')"
             required
             :valid="!errors[0]"
             :errorMessage="errors[0]"
@@ -38,87 +36,58 @@
         </ValidationProvider>
       </div>
       <ValidationProvider
-        rules="required|min:5"
+        rules="required"
         v-slot="{ errors }"
         class="form__element"
       >
         <SfInput
-          data-cy="billing-details-input_streetName"
           v-model="form.streetName"
           name="streetName"
-          label="Street Name"
+          :label="$t('Street Name')"
           required
           :valid="!errors[0]"
           :errorMessage="errors[0]"
         />
       </ValidationProvider>
-      <SfInput
-        data-cy="billing-details-input_apartment"
-        v-model="form.apartment"
-        name="apartment"
-        label="House/Apartment number"
-        required
+      <ValidationProvider
+        rules="required"
+        v-slot="{ errors }"
         class="form__element"
-      />
+      >
+        <SfInput
+          v-model="form.streetNumber"
+          name="apartment"
+          :label="$t('House/Apartment number')"
+          required
+          :valid="!errors[0]"
+          :errorMessage="errors[0]"
+        />
+      </ValidationProvider>
       <div class="form__horizontal">
         <ValidationProvider
-          rules="required|min:2"
+          rules="required"
           v-slot="{ errors }"
           class="form__element"
         >
           <SfInput
-            data-cy="billing-details-input_city"
             v-model="form.city"
             name="city"
-            label="City"
+            :label="$t('City')"
             required
             :valid="!errors[0]"
             :errorMessage="errors[0]"
           />
         </ValidationProvider>
         <ValidationProvider
-          rules="required|min:2"
-          v-slot="{ errors }"
-          class="form__element"
-        >
-          <SfInput
-            data-cy="billing-details-input_state"
-            v-model="form.state"
-            name="state"
-            label="State/Province"
-            required
-            :valid="!errors[0]"
-            :errorMessage="errors[0]"
-          />
-        </ValidationProvider>
-      </div>
-      <div class="form__horizontal">
-        <ValidationProvider
-          rules="required|min:4"
-          v-slot="{ errors }"
-          class="form__element"
-        >
-          <SfInput
-            data-cy="billing-details-input_zipCode"
-            v-model="form.postalCode"
-            name="zipCode"
-            label="Zip-code"
-            required
-            :valid="!errors[0]"
-            :errorMessage="errors[0]"
-          />
-        </ValidationProvider>
-        <!--ValidationProvider
-          :rules="`required|oneOf:${countries.map(c => c.name).join(',')}`"
+          :rules="validationRules.country"
           v-slot="{ errors }"
           class="form__element"
         >
           <SfSelect
-            data-cy="billing-details-select_country"
             class="form__select sf-select--underlined"
             v-model="form.country"
             name="country"
-            label="Country"
+            :label="$t('Country')"
             required
             :valid="!errors[0]"
             :errorMessage="errors[0]"
@@ -128,41 +97,80 @@
               :key="name"
               :value="name"
             >
-              {{ label }}
+              {{ $t(label) }}
             </SfSelectOption>
           </SfSelect>
-        </ValidationProvider-->
+        </ValidationProvider>
+      </div>
+      <div class="form__horizontal">
+        <ValidationProvider
+          name="state"
+          :rules="validationRules.state"
+          v-slot="{ errors }"
+          slim
+        >
+          <SfSelect
+            v-model="form.state"
+            :label="$t('State/Province')"
+            name="state"
+            class="form__element form__element--half form__element--half-even form__select sf-select--underlined"
+            required
+            :valid="!errors[0]"
+            :errorMessage="errors[0]"
+            :disabled="!statesInSelectedCountry"
+          >
+            <SfSelectOption
+              v-for="state in statesInSelectedCountry"
+              :key="state"
+              :value="state"
+            >
+              {{ state }}
+            </SfSelectOption>
+          </SfSelect>
+        </ValidationProvider>
+        <ValidationProvider
+          rules="required|min:2"
+          v-slot="{ errors }"
+          class="form__element"
+        >
+          <SfInput
+            v-model="form.postalCode"
+            name="zipCode"
+            :label="$t('Zip-code')"
+            required
+            :valid="!errors[0]"
+            :errorMessage="errors[0]"
+          />
+        </ValidationProvider>
       </div>
       <ValidationProvider
-        rules="required|min:8"
+        rules="required|phone"
         v-slot="{ errors }"
         class="form__element"
       >
         <SfInput
-          data-cy="billing-details-input_phoneNumber"
           v-model="form.phone"
           name="phone"
-          label="Phone number"
+          :label="$t('Phone number')"
           required
           :valid="!errors[0]"
           :errorMessage="errors[0]"
         />
       </ValidationProvider>
       <SfCheckbox
-        data-cy="billing-details-checkbox_isDefault"
         v-model="form.isDefault"
         name="isDefault"
-        label="Set as default"
+        :label="$t('Set as default')"
         class="form__checkbox-isDefault"
       />
-      <SfButton data-cy="billing-details-btn_update" class="form__button">
-        {{ isNew ? "Add the address" : "Update the address" }}
+      <SfButton class="form__button">
+        {{ isNew ? $t('Add the address') : $t('Update the address') }}
       </SfButton>
     </form>
   </ValidationObserver>
 </template>
 
-<script type="module">
+<script>
 import {
   SfInput,
   SfButton,
@@ -171,7 +179,9 @@ import {
 } from '@storefront-ui/vue';
 import { required, min, oneOf } from 'vee-validate/dist/rules';
 import { ValidationProvider, ValidationObserver, extend } from 'vee-validate';
-import { ref } from '@vue/composition-api';
+import { reactive, computed, watch } from '@nuxtjs/composition-api';
+import { useVSFContext } from '@vue-storefront/core';
+import '@/helpers/validators/phone';
 
 extend('required', {
   ...required,
@@ -208,7 +218,7 @@ export default {
         firstName: '',
         lastName: '',
         streetName: '',
-        apartment: '',
+        streetNumber: '',
         city: '',
         state: '',
         postalCode: '',
@@ -224,18 +234,19 @@ export default {
   },
 
   setup(props, { emit }) {
-    const form = ref({
+    const { $ct: { config } } = useVSFContext();
+    const form = reactive({
       id: props.address.id,
       firstName: props.address.firstName,
       lastName: props.address.lastName,
-      streetName: props.address.address1,
-      apartment: props.address.address2,
+      streetName: props.address.streetName,
+      streetNumber: props.address.streetNumber,
       city: props.address.city,
-      state: props.address.province,
-      postalCode: props.address.zip,
-      // country: props.address.country,
-      phone: props.address.phone
-      // isDefault: props.address.isDefault
+      state: props.address.state,
+      postalCode: props.address.postalCode,
+      country: props.address.country,
+      phone: props.address.phone,
+      isDefault: props.address.isDefault
     });
 
     const submitForm = () => {
@@ -247,9 +258,32 @@ export default {
       });
     };
 
+    const statesInSelectedCountry = computed(() => {
+      if (!form.country) {
+        return null;
+      }
+      const selectedCountry = config.countries.find(country => country.name === form.country);
+      return selectedCountry && selectedCountry.states;
+    });
+
+    const validationRules = {
+      contry: `required|oneOf:${config.countries.map(c => c.name).join(',')}`,
+      state: !statesInSelectedCountry ? null : 'required|min:2'
+    };
+
+    watch(statesInSelectedCountry, statesInSelectedCountry => {
+      const countryHasStates = statesInSelectedCountry && statesInSelectedCountry.length;
+      if (!countryHasStates && form.state) {
+        form.state = null;
+      }
+    });
+
     return {
       form,
-      submitForm
+      validationRules,
+      submitForm,
+      countries: config.countries,
+      statesInSelectedCountry
     };
   }
 };
@@ -265,9 +299,10 @@ export default {
     display: flex;
     align-items: center;
     --select-option-font-size: var(--font-size--lg);
+    flex-wrap: wrap;
     ::v-deep .sf-select__dropdown {
       font-size: var(--font-size--lg);
-      margin: 0;
+      // margin: 0;
       font-family: var(--font-family--secondary);
       font-weight: var(--font-weight--normal);
     }
