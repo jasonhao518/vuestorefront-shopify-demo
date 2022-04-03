@@ -14,7 +14,7 @@
     </SfHero>
     <LazyHydrate when-visible>
       <SfBannerGrid :banner-grid="1" class="banner-grid">
-        <template v-for="item in banners" v-slot:[item.slot]>
+        <template v-for="item in banners" #[item.slot]>
           <SfBanner
             :key="item.slot"
             :title="item.title"
@@ -45,56 +45,64 @@
       />
     </LazyHydrate>
     <LazyHydrate when-visible>
-      <InstagramFeed />
-    </LazyHydrate>
-
-    <LazyHydrate when-visible>
       <MobileStoreBanner />
     </LazyHydrate>
   </div>
 </template>
 <script type="module">
 import {
-  /* webpackChunkName: 'SfHero' */ SfHero,
-  /* webpackChunkName: 'SfBanner' */ SfBanner,
-  /* webpackChunkName: 'SfCallToAction' */ SfCallToAction,
-  /* webpackChunkName: 'SfSection' */ SfSection,
-  /* webpackChunkName: 'SfCarousel' */ SfCarousel,
-  /* webpackChunkName: 'SfProductCard' */ SfProductCard,
-  /* webpackChunkName: 'SfImage' */ SfImage,
-  /* webpackChunkName: 'SfBannerGrid' */ SfBannerGrid,
-  /* webpackChunkName: 'SfHeading' */ SfHeading,
-  /* webpackChunkName: 'SfArrow' */ SfArrow,
-  /* webpackChunkName: 'SfButton' */ SfButton
+  SfHero,
+  SfBanner,
+  SfCallToAction,
+  SfSection,
+  SfCarousel,
+  SfImage,
+  SfBannerGrid,
+  SfHeading,
+  SfArrow,
+  SfButton
 } from '@storefront-ui/vue';
-import RelatedProducts from '~/components/RelatedProducts.vue';
-import InstagramFeed from '~/components/InstagramFeed.vue';
 import {
-  /* webpackChunkName: 'useProduct' */ useProduct,
-  /* webpackChunkName: 'useCart' */ useCart,
-  /* webpackChunkName: 'productGetters' */ productGetters
+  useProduct,
+  useCart,
+  productGetters
 } from '@vue-storefront/shopify';
 import {
-  /* webpackChunkName: 'computed' */ computed
-} from '@vue/composition-api';
-import { onSSR } from '@vue-storefront/core';
-import MobileStoreBanner from '~/components/MobileStoreBanner.vue';
+  computed,
+  onBeforeMount
+} from '@nuxtjs/composition-api';
 import LazyHydrate from 'vue-lazy-hydration';
+import MobileStoreBanner from '~/components/MobileStoreBanner.vue';
+import RelatedProducts from '~/components/RelatedProducts.vue';
 
 export default {
   name: 'Home',
+  components: {
+    SfHero,
+    RelatedProducts,
+    SfBanner,
+    SfCallToAction,
+    SfSection,
+    SfCarousel,
+    SfImage,
+    SfBannerGrid,
+    SfHeading,
+    SfArrow,
+    SfButton,
+    MobileStoreBanner,
+    LazyHydrate
+  },
   // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
-  setup() {
+  setup(contect) {
     const {
       products: relatedProducts,
       search: productsSearch,
       loading: productsLoading
     } = useProduct('relatedProducts');
-    const { cart, load: loadCart, addItem: addToCart, isInCart } = useCart();
+    const { cart, addItem: addToCart, isInCart } = useCart();
 
-    onSSR(async () => {
-      await productsSearch({ catId: 123, limit: 8 });
-      await loadCart();
+    onBeforeMount(async () => {
+      await productsSearch({ limit: 8 });
     });
     return {
       products: computed(() =>
@@ -106,23 +114,6 @@ export default {
       addToCart,
       isInCart
     };
-  },
-  components: {
-    InstagramFeed,
-    SfHero,
-    RelatedProducts,
-    SfBanner,
-    SfCallToAction,
-    SfSection,
-    SfCarousel,
-    SfProductCard,
-    SfImage,
-    SfBannerGrid,
-    SfHeading,
-    SfArrow,
-    SfButton,
-    MobileStoreBanner,
-    LazyHydrate
   },
   // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
   data() {
@@ -242,24 +233,6 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-.article-meta h4 a {
-  color: #111111;
-  font-weight: 600;
-  font-size: 20px;
-}
-.article-meta {
-  margin-top: 10px;
-}
-.article-item__meta-item:not(:last-child)::after {
-  display: inline-block;
-  content: "";
-  width: 5px;
-  height: 5px;
-  margin: -1px 10px 0 10px;
-  border-radius: 100%;
-  background: rgba(0, 0, 0, 0.4);
-  vertical-align: middle;
-}
 #home {
   box-sizing: border-box;
   padding: 0 var(--spacer-sm);
@@ -269,13 +242,9 @@ export default {
     margin: 0 auto;
   }
 }
-
 .hero {
   margin: var(--spacer-xl) auto var(--spacer-lg);
   --hero-item-background-position: center;
-  ::v-deep .sf-link:hover {
-    color: var(--c-white);
-  }
   @include for-desktop {
     margin: var(--spacer-xl) auto var(--spacer-2xl);
   }
@@ -284,20 +253,22 @@ export default {
       --hero-item-background-position: left;
       @include for-mobile {
         --hero-item-background-position: 30%;
-        --hero-item-wrapper-text-align: right;
-        --hero-item-subtitle-width: 100%;
-        --hero-item-title-width: 100%;
-        --hero-item-wrapper-padding: var(--spacer-sm) var(--spacer-sm)
-          var(--spacer-sm) var(--spacer-2xl);
+        ::v-deep .sf-hero-item__subtitle,
+        ::v-deep .sf-hero-item__title {
+          text-align: right;
+          width: 100%;
+          padding-left: var(--spacer-sm);
+        }
       }
     }
   }
+  ::v-deep .sf-hero__control {
+    &--right,
+    &--left {
+      display: none;
+    }
+  }
 }
-
-::v-deep .sf-hero__controls {
-  --hero-controls-display: none;
-}
-
 .banner-grid {
   --banner-container-width: 50%;
   margin: var(--spacer-xl) 0;
@@ -308,10 +279,10 @@ export default {
     margin: var(--spacer-2xl) 0;
     ::v-deep .sf-link {
       --button-width: auto;
+      text-decoration: none;
     }
   }
 }
-
 .banner {
   &__tshirt {
     background-position: left;
@@ -322,7 +293,6 @@ export default {
     }
   }
 }
-
 .similar-products {
   display: flex;
   justify-content: space-between;
@@ -336,7 +306,6 @@ export default {
     padding-bottom: 0;
   }
 }
-
 .call-to-action {
   background-position: right;
   margin: var(--spacer-xs) 0;
@@ -344,9 +313,8 @@ export default {
     margin: var(--spacer-xl) 0 var(--spacer-2xl) 0;
   }
 }
-
 .carousel {
-  margin: 0 calc(var(--spacer-sm) * -1) 0 0;
+  margin: 0 calc(0 - var(--spacer-sm)) 0 0;
   @include for-desktop {
     margin: 0;
   }
@@ -358,6 +326,11 @@ export default {
     &__product {
       --product-card-add-button-transform: translate3d(0, 30%, 0);
     }
+  }
+  ::v-deep .sf-arrow--long .sf-arrow--right {
+    --arrow-icon-transform: rotate(180deg);
+    -webkit-transform-origin: center;
+    transform-origin: center;
   }
 }
 </style>

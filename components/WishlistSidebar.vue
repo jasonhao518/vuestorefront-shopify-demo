@@ -10,7 +10,7 @@
       <template #title>
         <div class="heading__wrapper">
           <SfHeading :level="3" title="My wishlist" class="sf-heading--left"/>
-          <SfButton data-cy="wishlist-sidebar-button_toggle-wishlist" class="heading__close-button sf-button--pure" aria-label="Wishlist sidebar close button" @click="toggleWishlistSidebar">
+          <SfButton class="heading__close-button sf-button--pure" aria-label="Wishlist sidebar close button" @click="toggleWishlistSidebar">
             <SfIcon icon="cross" size="14px" color="gray-primary"/>
           </SfButton>
         </div>
@@ -21,10 +21,9 @@
           <div class="collected-product-list">
             <transition-group name="fade" tag="div">
               <SfCollectedProduct
-                data-cy="collected-product-wishlist-sidebar"
                 v-for="product in products"
                 :key="wishlistGetters.getItemSku(product)"
-                :image="wishlistGetters.getItemImage(product)"
+                :image="addBasePath(wishlistGetters.getItemImage(product))"
                 :title="wishlistGetters.getItemName(product)"
                 :regular-price="$n(wishlistGetters.getItemPrice(product).regular, 'currency')"
                 :special-price="wishlistGetters.getItemPrice(product).special && $n(wishlistGetters.getItemPrice(product).special, 'currency')"
@@ -56,7 +55,7 @@
         </div>
         <div v-else class="empty-wishlist" key="empty-wishlist">
           <div class="empty-wishlist__banner">
-            <SfImage src="/icons/empty-cart.svg" alt="Empty bag" class="empty-wishlist__icon" />
+            <SfImage :src="addBasePath('/icons/empty-cart.svg')" alt="Empty bag" class="empty-wishlist__icon" />
             <SfHeading
               title="Your bag is empty"
               description="Looks like you haven’t added any items to the bag yet. Start
@@ -67,7 +66,7 @@
         </div>
       </transition>
       <template #content-bottom>
-        <SfButton data-cy="wishlist-sidebar-btn_start-shopping" @click="toggleWishlistSidebar" class="sf-button--full-width color-secondary">
+        <SfButton @click="toggleWishlistSidebar" class="sf-button--full-width color-secondary">
           {{ $t('Start shopping') }}
         </SfButton>
       </template>
@@ -85,10 +84,10 @@ import {
   SfCollectedProduct,
   SfImage
 } from '@storefront-ui/vue';
-import { computed } from '@vue/composition-api';
+import { computed } from '@nuxtjs/composition-api';
 import { useWishlist, useUser, wishlistGetters } from '@vue-storefront/shopify';
-import { onSSR } from '@vue-storefront/core';
 import { useUiState } from '~/composables';
+import { addBasePath } from '@vue-storefront/core';
 
 export default {
   name: 'Wishlist',
@@ -104,17 +103,14 @@ export default {
   },
   setup() {
     const { isWishlistSidebarOpen, toggleWishlistSidebar } = useUiState();
-    const { wishlist, removeItem, load: loadWishlist } = useWishlist();
+    const { wishlist, removeItem } = useWishlist();
     const { isAuthenticated } = useUser();
     const products = computed(() => wishlistGetters.getItems(wishlist.value));
     const totals = computed(() => wishlistGetters.getTotals(wishlist.value));
     const totalItems = computed(() => wishlistGetters.getTotalItems(wishlist.value));
 
-    onSSR(async () => {
-      await loadWishlist();
-    });
-
     return {
+      addBasePath,
       isAuthenticated,
       products,
       removeItem,

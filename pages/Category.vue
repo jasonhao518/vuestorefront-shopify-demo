@@ -1,29 +1,24 @@
 <template>
   <div id="category">
     <SfBreadcrumbs
-      class="breadcrumbs desktop-only"
+      class="breadcrumbs breadcrumbs-center"
       :breadcrumbs="breadcrumbs"
-    />
+    >
+      <template #link="{ breadcrumb }">
+        <nuxt-link
+          :data-testid="breadcrumb.text"
+          :to="breadcrumb.route.link"
+          class="sf-link disable-active-link sf-breadcrumbs__breadcrumb"
+        >
+          {{ breadcrumb.text }}
+        </nuxt-link>
+      </template>
+    </SfBreadcrumbs>
     <!-- sorting features panel -->
     <div class="navbar section">
       <div class="navbar__main">
-        <SfButton
-          class="sf-button--text navbar__filters-button"
-          data-cy="category-btn_filters"
-          aria-label="Filters"
-          @click="toggleFilterSidebar"
-        >
-          <SfIcon
-            size="24px"
-            color="dark-secondary"
-            icon="filter2"
-            class="navbar__filters-icon"
-            data-cy="category-icon_"
-          />
-          {{ $t("Filters") }}
-        </SfButton>
         <div class="navbar__sort desktop-only">
-          <span class="navbar__label">{{ $t("Sort by") }}:</span>
+          <span class="navbar__label">{{ $t('Sort by') }}:</span>
           <SfSelect
             :value="sortBy.selected"
             placeholder="Select sorting"
@@ -42,7 +37,7 @@
         </div>
         <div class="navbar__counter">
           <span class="navbar__label desktop-only"
-            >{{ $t("Products found") }}:
+            >{{ $t('Products found') }}:
           </span>
           <span class="desktop-only">{{ pagination.totalItems }}</span>
           <span class="navbar__label smartphone-only"
@@ -50,7 +45,7 @@
           >
         </div>
         <div class="navbar__view">
-          <span class="navbar__view-label desktop-only">{{ $t("View") }}</span>
+          <span class="navbar__view-label desktop-only">{{ $t('View') }}</span>
           <SfIcon
             data-cy="category-icon_grid-view"
             class="navbar__view-icon"
@@ -79,7 +74,7 @@
     <div class="main section">
       <!-- Category sidebar here -->
       <SfLoader :class="{ loading }" :loading="loading">
-        <div class="products" v-if="!loading">
+        <div v-if="!loading" class="products">
           <transition-group
             v-if="isCategoryGridView"
             appear
@@ -88,9 +83,9 @@
             class="products__grid"
           >
             <SfProductCard
-              data-cy="category-product-card"
               v-for="(product, i) in products"
               :key="productGetters.getId(product)"
+              data-cy="category-product-card"
               :style="{ '--index': i }"
               :title="productGetters.getName(product)"
               :image="productGetters.getCoverImage(product)"
@@ -104,8 +99,8 @@
               :max-rating="5"
               :score-rating="productGetters.getAverageRating(product)"
               :show-add-to-cart-button="true"
-              :isOnWishlist="false"
-              :isAddedToCart="isInCart({ product })"
+              :is-on-wishlist="false"
+              :is-added-to-cart="isInCart({ product, currentCart })"
               :link="
                 localePath(
                   `/p/${productGetters.getId(product)}/${productGetters.getSlug(
@@ -113,9 +108,11 @@
                   )}`
                 )
               "
+              :wishlist-icon="false"
               class="products__product-card"
-              @click:wishlist="addItemToWishlist({ product })"
-              @click:add-to-cart="addItemToCart({ product, quantity: 1 })"
+              @click:add-to-cart="
+                HandleAddTocart({ product, quantity: 1, currentCart })
+              "
             />
           </transition-group>
           <transition-group
@@ -126,9 +123,9 @@
             class="products__list"
           >
             <SfProductCardHorizontal
-              data-cy="category-product-cart_wishlist"
               v-for="(product, i) in products"
               :key="productGetters.getId(product)"
+              data-cy="category-product-cart_wishlist"
               :style="{ '--index': i }"
               :title="productGetters.getName(product)"
               :description="productGetters.getDescription(product)"
@@ -144,14 +141,15 @@
               :score-rating="3"
               :is-on-wishlist="false"
               class="products__product-card-horizontal"
-              @click:wishlist="addItemToWishlist({ product })"
-              @click:add-to-cart="addItemToCart({ product, quantity: 1 })"
               :link="
                 localePath(
                   `/p/${productGetters.getId(product)}/${productGetters.getSlug(
                     product
                   )}`
                 )
+              "
+              @click:add-to-cart="
+                HandleAddTocart({ product, quantity: 1, currentCart })
               "
             >
               <template #configuration>
@@ -163,29 +161,13 @@
                 />
                 <SfProperty class="desktop-only" name="Color" value="white" />
               </template>
-              <template #actions>
-                <SfButton
-                  class="sf-button--text desktop-only"
-                  style="margin: 0 0 1rem auto; display: block"
-                  @click="() => {}"
-                >
-                  Save for later
-                </SfButton>
-                <SfButton
-                  class="sf-button--text desktop-only"
-                  style="margin: 0 0 0 auto; display: block"
-                  @click="() => {}"
-                >
-                  Add to compare
-                </SfButton>
-              </template>
             </SfProductCardHorizontal>
           </transition-group>
           <SfPagination
             v-if="!loading"
+            v-show="pagination.totalPages > 1"
             data-cy="category-pagination"
             class="products__pagination desktop-only"
-            v-show="pagination.totalPages > 1"
             :current="pagination.currentPage"
             :total="pagination.totalPages"
             :visible="5"
@@ -222,15 +204,15 @@
       <div class="filters desktop-only">
         <div v-for="(facet, i) in facets" :key="i">
           <SfHeading
+            :key="`filter-title-${facet.id}`"
             :level="4"
             :title="facet.label"
             class="filters__title sf-heading--left"
-            :key="`filter-title-${facet.id}`"
           />
           <div
             v-if="isFacetColor(facet)"
-            class="filters__colors"
             :key="`${facet.id}-colors`"
+            class="filters__colors"
           >
             <SfColor
               v-for="option in facet.options"
@@ -306,7 +288,7 @@ import {
   SfColor,
   SfProperty
 } from '@storefront-ui/vue';
-import { ref, computed, onMounted } from '@vue/composition-api';
+import { computed, onMounted } from '@nuxtjs/composition-api';
 import {
   useCart,
   useWishlist,
@@ -314,116 +296,10 @@ import {
   useFacet,
   facetGetters
 } from '@vue-storefront/shopify';
-import useUiHelpers from '~/composables/useUiHelpers';
-import useUiState from '~/composables/useUiState';
+import { useUiHelpers, useUiState, useUiNotification } from '~/composables';
 import { onSSR } from '@vue-storefront/core';
-import Vue from 'vue';
 
 export default {
-  transition: 'fade',
-  // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
-  setup(props, context) {
-    const th = useUiHelpers();
-    const slug = context.root.$route.params.slug_1;
-    const uiState = useUiState();
-    const { addItem: addItemToCart, isInCart } = useCart();
-    const { addItem: addItemToWishlist } = useWishlist();
-    const { result, search, loading } = useFacet();
-    const products = computed(() => facetGetters.getProducts(result.value));
-    const categoryTree = computed(() =>
-      facetGetters.getCategoryTree(result.value)
-    );
-    const breadcrumbs = computed(() =>
-      facetGetters.getBreadcrumbs(result.value)
-    );
-    const sortBy = computed(() => facetGetters.getSortOptions(result.value));
-    const facets = computed(() =>
-      facetGetters.getGrouped(result.value, ['color', 'size'])
-    );
-    const pagination = computed(() => facetGetters.getPagination(result.value));
-    const activeCategory = computed(() => {
-      const items = categoryTree.value;
-      if (items === null || items.length === undefined) {
-        return '';
-      }
-
-      // const category = items.find(({ isCurrent, items }) => isCurrent || items.find(({ isCurrent }) => isCurrent));
-      const category = items.find((curCat) => curCat.slug === slug);
-      return category?.label || items[0].label;
-    });
-
-    onSSR(async () => {
-      await search(th.getFacetsFromURL());
-    });
-
-    const { changeFilters, isFacetColor } = useUiHelpers();
-    const { toggleFilterSidebar } = useUiState();
-    const selectedFilters = ref({});
-
-    onMounted(() => {
-      context.root.$scrollTo(context.root.$el, 2000);
-      if (!facets.value.length) return;
-      selectedFilters.value = facets.value.reduce(
-        (prev, curr) => ({
-          ...prev,
-          [curr.id]: curr.options.filter((o) => o.selected).map((o) => o.id)
-        }),
-        {}
-      );
-    });
-
-    const isFilterSelected = (facet, option) =>
-      (selectedFilters.value[facet.id] || []).includes(option.id);
-
-    const selectFilter = (facet, option) => {
-      if (!selectedFilters.value[facet.id]) {
-        Vue.set(selectedFilters.value, facet.id, []);
-      }
-
-      if (selectedFilters.value[facet.id].find((f) => f === option.id)) {
-        selectedFilters.value[facet.id] = selectedFilters.value[
-          facet.id
-        ].filter((f) => f !== option.id);
-        return;
-      }
-
-      selectedFilters.value[facet.id].push(option.id);
-    };
-
-    const clearFilters = () => {
-      toggleFilterSidebar();
-      selectedFilters.value = {};
-      changeFilters(selectedFilters.value);
-    };
-
-    const applyFilters = () => {
-      toggleFilterSidebar();
-      changeFilters(selectedFilters.value);
-    };
-
-    return {
-      ...uiState,
-      th,
-      products,
-      categoryTree,
-      loading,
-      productGetters,
-      pagination,
-      activeCategory,
-      sortBy,
-      facets,
-      breadcrumbs,
-      addItemToWishlist,
-      addItemToCart,
-      isInCart,
-      isFacetColor,
-      selectFilter,
-      isFilterSelected,
-      selectedFilters,
-      clearFilters,
-      applyFilters
-    };
-  },
   components: {
     SfButton,
     SfSidebar,
@@ -439,6 +315,85 @@ export default {
     SfColor,
     SfHeading,
     SfProperty
+  },
+  transition: 'fade',
+  setup(_, context) {
+    const th = useUiHelpers();
+    const uiState = useUiState();
+    const { addItem: addItemToCart, isInCart, cart: currentCart } = useCart();
+    const { send: sendNotification } = useUiNotification();
+    const { result, search, loading } = useFacet();
+    const products = computed(() => facetGetters.getProducts(result.value));
+    const sortBy = computed(() => facetGetters.getSortOptions(result.value));
+    const facets = computed(() =>
+      facetGetters.getGrouped(result.value, ['color', 'size'])
+    );
+    const pagination = computed(() => facetGetters.getPagination(result.value));
+    onSSR(async () => {
+      await search(th.getFacetsFromURL());
+    });
+
+    const { isFacetColor } = useUiHelpers();
+    const { toggleCategoryGridView } = useUiState();
+
+    onMounted(() => {
+      context.root.$scrollTo(context.root.$el, 2000);
+    });
+
+    return {
+      ...uiState,
+      th,
+      products,
+      loading,
+      productGetters,
+      pagination,
+      sortBy,
+      facets,
+      currentCart,
+      sendNotification,
+      addItemToCart,
+      isInCart,
+      isFacetColor,
+      toggleCategoryGridView
+    };
+  },
+  // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+  data() {
+    return {
+      breadcrumbs: [
+        {
+          text: 'Home',
+          route: { link: '/' }
+        },
+        {
+          text: this.removeSpaceFromText(this.$route.params.slug_1),
+          route: { link: '#' }
+        }
+      ]
+    };
+  },
+  methods: {
+    // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+    HandleAddTocart(productObj) {
+      this.addItemToCart(productObj).then(() => {
+        this.sendNotification({
+          key: 'added_to_cart',
+          message: 'Product has been successfully added to cart !',
+          type: 'success',
+          title: 'Product added!',
+          icon: 'check'
+        });
+      });
+    },
+    // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+    removeSpaceFromText(str) {
+      let i;
+      const frags = str.split('-');
+      for (i = 0; i < frags.length; i++) {
+        frags[i] = frags[i].charAt(0).toUpperCase() + frags[i].slice(1);
+      }
+      return frags.join(' ');
+    }
   }
 };
 </script>

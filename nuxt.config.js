@@ -1,11 +1,24 @@
 require('isomorphic-fetch');
 import webpack from 'webpack';
 
-export default {
+/** @type { import('@nuxt/types').NuxtConfig } */ 
+const config = {
   server: {
-    port: 3001,
+    port: process.env.APP_PORT || 3001,
     host: '0.0.0.0'
   },
+  publicRuntimeConfig: {
+    appKey: 'vsf2spcon',
+    appVersion: Date.now(),
+    middlewareUrl: process.env.NODE_ENV === 'production' ? `https://${process.env.BASEURL}/api/`: `http://${process.env.BASEURL}/api/`
+  },
+  privateRuntimeConfig: {
+    storeURL: process.env.SHOPIFY_DOMAIN,
+    storeToken: process.env.SHOPIFY_STOREFRONT_TOKEN
+  },
+  serverMiddleware: [
+    { path: '/custom', handler: '~/server-middleware/custom-features.js' }
+  ],
   head: {
     title: 'Shopify | Vue Storefront Next',
     meta: [
@@ -41,8 +54,12 @@ export default {
     ]
   },
   loading: { color: '#fff' },
+  plugins: [
+    '~/plugins/scrollToTop.client.js'
+  ],
   buildModules: [
     // to core
+    '@nuxtjs/composition-api/module',
     '@nuxtjs/pwa',
     '@nuxt/typescript-build',
     '@nuxtjs/style-resources',
@@ -69,16 +86,15 @@ export default {
     'nuxt-i18n',
     'cookie-universal-nuxt',
     'vue-scrollto/nuxt',
-    '@vue-storefront/middleware/nuxt'
+    '@vue-storefront/middleware/nuxt',
+    '@nuxtjs/sitemap'
   ],
   i18n: {
     currency: 'USD',
     country: 'US',
     countries: [
       { name: 'US', label: 'United States' },
-      { name: 'AT', label: 'Austria' },
-      { name: 'DE', label: 'Germany' },
-      { name: 'NL', label: 'Netherlands' }
+      { name: 'DE', label: 'Germany' }
     ],
     currencies: [
       { name: 'EUR', label: 'Euro' },
@@ -87,12 +103,14 @@ export default {
     locales: [
       {
         code: 'en',
+        alias: 'us',
         label: 'English',
         file: 'en.js',
         iso: 'en'
       },
       {
         code: 'de',
+        alias: 'de',
         label: 'German',
         file: 'de.js',
         iso: 'de'
@@ -110,13 +128,31 @@ export default {
             style: 'currency',
             currency: 'USD',
             currencyDisplay: 'symbol'
+          },
+          decimal: {
+            style: 'decimal',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+          },
+          percent: {
+            style: 'percent',
+            useGrouping: false
           }
         },
         de: {
           currency: {
             style: 'currency',
-            currency: 'EUR',
+            currency: 'GBP',
             currencyDisplay: 'symbol'
+          },
+          decimal: {
+            style: 'decimal',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+          },
+          percent: {
+            style: 'percent',
+            useGrouping: false
           }
         }
       }
@@ -133,7 +169,7 @@ export default {
     ]
   },
   build: {
-    transpile: ['vee-validate/dist/rules'],
+    transpile: ['vee-validate/dist/rules', 'storefront-ui'],
     plugins: [
       new webpack.DefinePlugin({
         'process.VERSION': JSON.stringify({
@@ -142,7 +178,19 @@ export default {
           lastCommit: process.env.LAST_COMMIT || ''
         })
       })
-    ]
+    ],
+    extend(config) {
+      config.resolve.extensions.push('.mjs')
+
+      config.module.rules.push({
+        test: /\.mjs$/,
+        include: /node_modules/,
+        type: 'javascript/auto'
+      })
+    },
+    extractCSS: {
+      ignoreOrder: true
+    }
   },
   router: {
     // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
@@ -158,7 +206,7 @@ export default {
     manifest: {
       name: 'VSF Next: Shopify APP',
       lang: 'en',
-      shortName: 'VSF Next',
+      shortName: 'SPVSF2',
       startUrl: '/',
       display: 'standalone',
       backgroundColor: '#5ece7b',
@@ -209,10 +257,43 @@ export default {
       description:
         'This is the Shopify PWA app for VSF Next - Developed by Aureate labs',
       themeColor: '#5ece7b',
-      ogHost: 'shopify-pwa-beta.aureatelabs.com'
+      ogHost: 'shopify-pwa.aureatelabs.com'
     },
     icon: {
       iconSrc: 'src/static/android-icon-512x512.png'
+    },
+    workbox: {
+      offlineStrategy: 'StaleWhileRevalidate',
+      runtimeCaching: [
+        {
+          // Match any request that ends with .png, .jpg, .jpeg or .svg.
+          urlPattern: /\.(?:png|jpg|jpeg|svg|woff|woff2)$/,
+          // Apply a cache-first strategy.
+          handler: 'CacheFirst',
+          options: {
+            // Use a custom cache name.
+            cacheName: 'SPVSF2Assets',
+
+            // Only cache 100 images.
+            expiration: {
+              maxEntries: 100
+            }
+          }
+        },
+        {
+          urlPattern: /^\/(?:(c)?(\/.*)?)$/,
+          handler: 'StaleWhileRevalidate',
+          strategyOptions: {
+            cacheName: 'SPVSF2cached',
+            cacheExpiration: {
+              maxEntries: 200,
+              maxAgeSeconds: 3600
+            }
+          }
+        }
+      ]
     }
   }
 };
+
+export default config

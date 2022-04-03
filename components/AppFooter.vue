@@ -2,59 +2,43 @@
   <SfFooter :column="4" multiple class="footer">
     <SfFooterColumn :title="$t('About us')">
       <SfList>
-        <SfListItem
-          v-for="item in aboutUs"
-          :key="item"
-          >
-          <SfMenuItem
-            :data-cy="`app-foter-url_about-us_${item.split(' ').join('-').toLowerCase()}`"
-            :label="$t(item)"
-          />
+        <SfListItem v-for="item in aboutUs" :key="item">
+          <SfMenuItem :label="$t(item)" />
         </SfListItem>
       </SfList>
     </SfFooterColumn>
     <SfFooterColumn :title="$t('Departments')">
       <SfList>
-        <SfListItem
-          v-for="item in departments"
-          :key="item"
-        >
-          <SfMenuItem
-            :data-cy="`app-foter-url_departments_${item.split(' ').join('-').toLowerCase()}`"
-            :label="$t(item)"
-          />
+        <SfListItem v-for="item in departments" :key="item">
+          <SfMenuItem :label="$t(item)" />
         </SfListItem>
       </SfList>
     </SfFooterColumn>
     <SfFooterColumn :title="$t('Help')">
       <SfList>
-        <SfListItem
-          v-for="item in help"
-          :key="item"
-        >
-          <SfMenuItem
-            :data-cy="`app-foter-url_help_${item.split(' ').join('-').toLowerCase()}`"
-            :label="$t(item)"
-          />
+        <SfListItem v-for="item in help" :key="item">
+          <SfMenuItem :label="$t(item)" />
         </SfListItem>
       </SfList>
     </SfFooterColumn>
     <SfFooterColumn :title="$t('Payment & Delivery')">
       <SfList>
-        <SfListItem
-          v-for="item in paymentsDelivery"
-          :key="item"
-        >
-          <SfMenuItem
-            :data-cy="`app-foter-url_payment_${item.split(' ').join('-').toLowerCase()}`"
-            :label="$t(item)"
-          />
+        <SfListItem v-for="item in paymentsDelivery" :key="item">
+          <SfMenuItem :label="$t(item)" />
         </SfListItem>
       </SfList>
     </SfFooterColumn>
-    <SfFooterColumn title="Social">
+    <SfFooterColumn :title="$t('Social')">
       <div class="footer__socials">
-        <SfImage class="footer__social-image" v-for="item in social" :key="item" :src="'/icons/'+item+'.svg'" :alt="item" width="32" height="32" />
+        <SfImage
+          class="footer__social-image"
+          v-for="item in social"
+          :key="item"
+          :src="`/icons/${item}.svg`"
+          :alt="item"
+          :width="32"
+          :height="32"
+        />
       </div>
     </SfFooterColumn>
   </SfFooter>
@@ -62,7 +46,6 @@
 
 <script>
 import { SfFooter, SfList, SfImage, SfMenuItem } from '@storefront-ui/vue';
-
 export default {
   components: {
     SfFooter,
@@ -72,10 +55,23 @@ export default {
   },
   data() {
     return {
-      aboutUs: ['Who we are', 'Quality in the details', 'Customer Reviews'],
-      departments: ['Women fashion', 'Men fashion', 'Kidswear', 'Home'],
-      help: ['Customer service', 'Size guide', 'Contact us'],
-      paymentsDelivery: ['Purchase terms', 'Guarantee'],
+      aboutUs: [
+        this.$t('Who we are'),
+        this.$t('Quality in the details'),
+        this.$t('Customer Reviews')
+      ],
+      departments: [
+        this.$t('Women fashion'),
+        this.$t('Men Fashion'),
+        this.$t('Kidswear'),
+        this.$t('Home')
+      ],
+      help: [
+        this.$t('Customer service'),
+        this.$t('Size guide'),
+        this.$t('Contact us')
+      ],
+      paymentsDelivery: [this.$t('Purchase terms'), this.$t('Guarantee')],
       social: ['facebook', 'pinterest', 'google', 'twitter', 'youtube'],
       isMobile: false,
       desktopMin: 1024
@@ -85,9 +81,8 @@ export default {
 </script>
 
 <style lang="scss">
-
 .footer {
-  margin-bottom: 3.75rem;
+  margin-bottom: var(--spacer-xl);
   @include for-desktop {
     margin-bottom: 0;
   }
@@ -113,10 +108,12 @@ export default {
     margin-top: var(--spacer-2xl);
   }
   &__container {
+    padding-bottom: var(--spacer-xl);
     margin: var(--spacer-sm);
     @include for-desktop {
       max-width: 69rem;
       margin: 0 auto;
+      padding-bottom: 0;
     }
   }
 }

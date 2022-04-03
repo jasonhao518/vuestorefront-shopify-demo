@@ -2,146 +2,258 @@
   <div>
     <SfMegaMenu
       :visible="isSearchOpen"
-      title="$t('Search results')"
+      :title="$t('Search results')"
       class="search"
     >
       <transition name="sf-fade" mode="out-in">
-        <div v-if="products.length > 0" class="search__wrapper-results" key="results">
-          <SfMegaMenuColumn :title="$t('Categories')" class="sf-mega-menu-column--pined-content-on-mobile search__categories">
+        <div
+          v-if="products && products.length > 0"
+          key="results"
+          class="search__wrapper-results"
+        >
+          <SfMegaMenuColumn
+            v-if="false"
+            :title="$t('Categories')"
+            class="sf-mega-menu-column--pined-content-on-mobile search__categories"
+          >
+            <template #title="{ title }">
+              <SfMenuItem :label="title" @click="megaMenu.changeActive(title)">
+                <template #mobile-nav-icon> &#8203; </template>
+              </SfMenuItem>
+            </template>
             <SfList>
-              <SfListItem v-for="(category, key) in categories.items" :key="key">
-                <SfMenuItem :label="category.label" :link="`/c/women/${category.slug}`"/>
+              <SfListItem
+                v-for="(category, key) in categories.items"
+                :key="key"
+              >
+                <SfMenuItem
+                  :label="category.label"
+                  :link="localePath(getCatLink(category))"
+                >
+                  <template #mobile-nav-icon> &#8203; </template>
+                </SfMenuItem>
               </SfListItem>
             </SfList>
           </SfMegaMenuColumn>
-          <SfMegaMenuColumn :title="$t('Product suggestions')" class="sf-mega-menu-column--pined-content-on-mobile search__results">
-            <template #title="{title}">
+          <SfMegaMenuColumn
+            :title="$t('Product suggestions')"
+            class="sf-mega-menu-column--pined-content-on-mobile search__results"
+          >
+            <template #title="{ title }">
               <SfMenuItem
                 :label="title"
                 class="sf-mega-menu-column__header search__header"
-              />
+              >
+                <template #mobile-nav-icon> &#8203; </template>
+              </SfMenuItem>
             </template>
-            <SfScrollable class="results--desktop desktop-only" show-text="" hide-text="">
+            <SfScrollable
+              class="results--desktop desktop-only"
+              show-text=""
+              hide-text=""
+            >
               <div class="results-listing">
                 <SfProductCard
                   v-for="(product, index) in products"
                   :key="index"
                   class="result-card"
-                  :regular-price="$n(productGetters.getPrice(product).regular, 'currency')"
+                  :regular-price="
+                    $n(productGetters.getPrice(product).regular, 'currency')
+                  "
+                  :special-price="
+                    productGetters.getPrice(product).special &&
+                    $n(productGetters.getPrice(product).special, 'currency')
+                  "
                   :score-rating="productGetters.getAverageRating(product)"
-                  :reviews-count="7"
                   :image="productGetters.getCoverImage(product)"
                   :alt="productGetters.getName(product)"
                   :title="productGetters.getName(product)"
-                  :link="`/p/${productGetters.getId(product)}/${productGetters.getSlug(product)}`"
-                />
+                  :link="localePath(
+                  `/p/${productGetters.getId(product)}/${productGetters.getSlug(
+                    product
+                  )}`
+                )"
+                  @click:add-to-cart="
+                    handleAddToCart({ product, quantity: 1, currentCart })
+                  "
+                >
+                  <template slot="title">
+                    <SfButton
+                      :link="localePath(
+                  `/p/${productGetters.getId(product)}/${productGetters.getSlug(
+                    product
+                  )}`
+                )"
+                      class="sf-button--pure sf-product-card__link"
+                      data-testid="product-link"
+                    >
+                      <h3
+                        class="sf-product-card__title"
+                        v-html="productGetters.getName(product)"
+                      ></h3>
+                    </SfButton>
+                  </template>
+                </SfProductCard>
               </div>
             </SfScrollable>
             <div class="results--mobile smartphone-only">
-                <SfProductCard
-                  v-for="(product, index) in products"
-                  :key="index"
-                  :regular-price="$n(productGetters.getPrice(product).regular, 'currency')"
-                  :score-rating="productGetters.getAverageRating(product)"
-                  :reviews-count="7"
-                  :image="productGetters.getCoverImage(product)"
-                  :alt="productGetters.getName(product)"
-                  :title="productGetters.getName(product)"
-                  :link="`/p/${productGetters.getId(product)}/${productGetters.getSlug(product)}`"
-                />
-              </div>
-            <SfButton
-              v-if="categories.items && categories.items.length"
-              :link="`/c/${categories.slug}/${categories.items[0].slug}`"
-              class="sf-button--text see-all desktop-only"
-            >
-              {{ $t('See all results') }}
-            </SfButton>
+              <SfProductCard
+                v-for="(product, index) in products"
+                :key="index"
+                class="result-card"
+                :regular-price="
+                  $n(productGetters.getPrice(product).regular, 'currency')
+                "
+                :special-price="
+                  productGetters.getPrice(product).special &&
+                  $n(productGetters.getPrice(product).special, 'currency')
+                "
+                :score-rating="productGetters.getAverageRating(product)"
+                :image="productGetters.getCoverImage(product)"
+                :alt="productGetters.getName(product)"
+                :title="productGetters.getName(product)"
+                :link="localePath(
+                  `/p/${productGetters.getId(product)}/${productGetters.getSlug(
+                    product
+                  )}`
+                )"
+                @click:add-to-cart="
+                  handleAddToCart({ product, quantity: 1, currentCart })
+                "
+              >
+                <template slot="title">
+                  <SfButton
+                    :link="localePath(
+                  `/p/${productGetters.getId(product)}/${productGetters.getSlug(
+                    product
+                  )}`
+                )"
+                    class="sf-button--pure sf-product-card__link"
+                    data-testid="product-link"
+                  >
+                    <h3
+                      class="sf-product-card__title"
+                      v-html="productGetters.getName(product)"
+                    ></h3>
+                  </SfButton>
+                </template>
+              </SfProductCard>
+            </div>
           </SfMegaMenuColumn>
           <div class="action-buttons smartphone-only">
             <SfButton
-              v-if="categories.items && categories.items.length"
-              class="action-buttons__button color-secondary"
-              :link="`/c/${categories.slug}/${categories.items[0].slug}`"
+              class="action-buttons__button color-light"
+              @click="$emit('close')"
+              >{{ $t('Cancel') }}</SfButton
             >
-              {{ $t('See all results') }}
-            </SfButton>
-            <SfButton class="action-buttons__button color-light" @click="$emit('close')">{{ $t('Cancel') }}</SfButton>
           </div>
         </div>
-        <div v-else class="before-results" key="no-results">
-          <SfImage src="/error/error.svg" class="before-results__picture" alt="error"/>
-          <p class="before-results__paragraph">{{ $t('You haven’t searched for items yet') }}</p>
-          <p class="before-results__paragraph">{{ $t('Let’s start now – we’ll help you') }}</p>
-          <SfButton class="before-results__button color-secondary smartphone-only" @click="$emit('close')">{{ $t('Go back') }}</SfButton>
+        <div v-else key="no-results" class="before-results">
+          <SfImage
+            src="/error/error.svg"
+            class="before-results__picture"
+            alt="error"
+            loading="lazy"
+          />
+          <p class="before-results__paragraph">
+            {{ $t("You haven't searched for items yet") }}
+          </p>
+          <p class="before-results__paragraph">
+            {{ $t("Let's start now - we'll help you") }}
+          </p>
+          <SfButton
+            class="before-results__button color-secondary smartphone-only"
+            @click="$emit('close')"
+            >{{ $t('Go back') }}</SfButton
+          >
         </div>
       </transition>
     </SfMegaMenu>
   </div>
 </template>
+
 <script>
 import {
   SfMegaMenu,
   SfList,
-  SfBanner,
   SfProductCard,
   SfScrollable,
   SfMenuItem,
   SfButton,
-  SfImage
+  SfImage,
 } from '@storefront-ui/vue';
-import { ref, watch, computed } from '@vue/composition-api';
-import { productGetters, facetGetters } from '@vue-storefront/shopify';
-
+import { ref, watch, computed, inject } from '@vue/composition-api';
+import { productGetters, useCart } from '@vue-storefront/shopify';
+import { useUiNotification } from '~/composables';
+import useUiHelpers from '../composables/useUiHelpers';
 export default {
   name: 'SearchResults',
   components: {
     SfMegaMenu,
     SfList,
-    SfBanner,
     SfProductCard,
     SfScrollable,
     SfMenuItem,
     SfButton,
-    SfImage
+    SfImage,
   },
   props: {
     visible: {
       type: Boolean,
-      default: false
+      default: false,
     },
     result: {
-      type: Object
-    }
+      type: Object,
+      default: () => ({}),
+    },
   },
-  setup(props) {
+  setup(props, { emit }) {
+    const { getCatLink } = useUiHelpers();
     const isSearchOpen = ref(props.visible);
-    const searchResult = ref(props.result);
-    const products = computed(() => facetGetters.getProducts(searchResult.value));
-    const categories = computed(() => facetGetters.getCategoryTree(searchResult.value));
+    const { addItem: addItemToCart, cart: currentCart } = useCart();
+    const { send: sendNotification } = useUiNotification();
+    const products = computed(() => props.result?.products);
+    const categories = computed(() => props.result?.categories);
 
-    watch(() => props.visible, (newVal) => {
-      isSearchOpen.value = newVal;
-      if (isSearchOpen.value) {
-        document.body.classList.add('no-scroll');
-      } else {
-        document.body.classList.remove('no-scroll');
-        searchResult.value.data = [];
+    watch(
+      () => props.visible,
+      (newVal) => {
+        isSearchOpen.value = newVal;
+        if (isSearchOpen.value) {
+          document.body.classList.add('no-scroll');
+        } else {
+          document.body.classList.remove('no-scroll');
+          emit('removeSearchResults');
+        }
       }
-    });
+    );
+
+    const handleAddToCart = (productObj) => {
+      addItemToCart(productObj).then(() => {
+        sendNotification({
+          key: 'added_to_cart',
+          message: 'Product has been successfully added to cart !',
+          type: 'success',
+          title: 'Product added!',
+          icon: 'check',
+        });
+      });
+    };
 
     return {
+      getCatLink,
       isSearchOpen,
       productGetters,
       products,
-      categories
+      categories,
+      currentCart,
+      handleAddToCart,
     };
-  }
+  },
 };
 </script>
 
 <style lang="scss" scoped>
-
 .search {
   position: absolute;
   right: 0;
@@ -165,7 +277,7 @@ export default {
     flex: 0 0 220px;
   }
   &__results {
-    flex: 1
+    flex: 1;
   }
   &__header {
     margin-left: var(--spacer-sm);
@@ -190,7 +302,7 @@ export default {
     justify-content: space-around;
     background: var(--c-white);
     padding: var(--spacer-base) var(--spacer-sm);
-    --product-card-max-width: 9rem ;
+    --product-card-max-width: 9rem;
   }
 }
 .see-all {
@@ -202,9 +314,6 @@ export default {
   width: 100%;
   &__button {
     width: calc(100% - 32px);
-    &:first-child {
-      margin-bottom: var(--spacer-sm);
-    }
   }
 }
 .results-listing {
@@ -213,22 +322,25 @@ export default {
   margin-left: var(--spacer-2xs);
 }
 .result-card {
-  margin: var(--spacer-2xs) 0;
+  margin: var(--spacer-sm) 0;
+  @include for-desktop {
+    margin: var(--spacer-2xs) 0;
+  }
 }
-
 .before-results {
   box-sizing: border-box;
   padding: var(--spacer-base) var(--spacer-sm) var(--spacer-2xl);
   width: 100%;
   text-align: center;
   @include for-desktop {
-    padding-bottom: var(--spacer-xl);
+    padding: 0;
   }
   &__picture {
     --image-width: 230px;
     margin-top: var(--spacer-2xl);
     @include for-desktop {
-      --image-width: 21.875rem;
+      --image-width: 18.75rem;
+      margin-top: var(--spacer-base);
     }
   }
   &__paragraph {
@@ -249,5 +361,4 @@ export default {
     width: 100%;
   }
 }
-
 </style>

@@ -1,6 +1,7 @@
 <template>
   <div id="cart">
     <SfSidebar
+      v-e2e="'sidebar-cart'"
       :visible="isCartSidebarOpen"
       title="My Cart"
       class="sf-sidebar--right"
@@ -19,36 +20,34 @@
           <div class="collected-product-list">
             <transition-group name="sf-fade" tag="div">
               <SfCollectedProduct
-                data-cy="collected-product-cart-sidebar"
                 v-for="product in products"
                 :key="cartGetters.getItemSku(product)"
+                v-e2e="'collected-product'"
                 :image="cartGetters.getItemImage(product)"
                 :title="cartGetters.getItemName(product)"
-                :regular-price="
-                  $n(cartGetters.getItemPrice(product).regular, 'currency')
-                "
-                :special-price="
-                  cartGetters.getItemPrice(product).special &&
-                  $n(cartGetters.getItemPrice(product).special, 'currency')
-                "
+                :regular-price="$n(cartGetters.getItemPrice(product).regular, 'currency')"
+                :special-price="cartGetters.getItemPrice(product).special && $n(cartGetters.getItemPrice(product).special, 'currency')"
                 :stock="99999"
-                :qty="cartGetters.getItemQty(product)"
-                @input="updateItemQty({ product, quantity: $event })"
-                @click:remove="removeItem({ product })"
                 class="collected-product"
+                @click:remove="removeItem({ product })"
               >
                 <template #configuration>
                   <div class="collected-product__properties">
                     <SfProperty
-                      v-for="(
-                        attribute, key
-                      ) in cartGetters.getItemAttributes(product, [
-                        'color',
-                        'size',
-                      ])"
+                      v-for="(attribute, key) in cartGetters.getItemAttributes(product, ['color', 'size'])"
                       :key="key"
                       :name="key"
                       :value="attribute"
+                    />
+                  </div>
+                </template>
+                <template #input>
+                  <div class="sf-collected-product__quantity-wrapper">
+                    <SfQuantitySelector
+                      :disabled="loading"
+                      :qty="cartGetters.getItemQty(product)"
+                      class="sf-collected-product__quantity-selector"
+                      @input="updateQuantity({ product, quantity: Number($event) })"
                     />
                   </div>
                 </template>
@@ -77,29 +76,51 @@
         <transition name="sf-fade">
           <div v-if="totalItems">
             <SfProperty
-              name="Total price"
+            v-if="totalDiscount"
+              name="Discount"
               class="sf-property--full-width sf-property--large my-cart__total-price"
             >
               <template #value>
-                <SfPrice :regular="$n(totals.subtotal, 'currency')" />
+                <SfPrice
+                  :regular="$n(totalDiscount.percentage ? totalDiscount.percentage/100 : totalDiscount.amount, totalDiscount.percentage ? 'percent':'currency')"
+                />
               </template>
             </SfProperty>
-            <SfLink
-              :link="checkoutURL"
+            <SfProperty
+              name="Estimated Total"
+              class="sf-property--full-width sf-property--large my-cart__total-price"
             >
+              <template #value>
+                <SfPrice
+                  :regular="$n(totals.subtotal, 'currency')"
+                />
+              </template>
+            </SfProperty>
+            <SfProperty
+            v-if="totalSavings"
+              name="Total Savings"
+              class="sf-property--full-width sf-property--large my-cart__total-price"
+            >
+              <template #value>
+                <SfPrice
+                  :regular="$n(totalSavings, 'currency')"
+                />
+              </template>
+            </SfProperty>
+            <SfLink link="javascript:void(0);" @click="handleCheckout(checkoutURL, parseFloat(totals.subtotal))">
               <SfButton
-                class="sf-button--full-width color-secondary"
+                class="sf-button--full-width color-secondary sf-proceed_to_checkout"
                 @click="toggleCartSidebar"
               >
-                {{ $t("Go to checkout") }}
+                {{ $t('Go to checkout') }}
               </SfButton>
             </SfLink>
-          </div>
+            </div>
           <div v-else>
             <SfButton
               class="sf-button--full-width color-primary"
               @click="toggleCartSidebar"
-              >{{ $t("Go back shopping") }}</SfButton
+            >{{ $t('Go back shopping') }}</SfButton
             >
           </div>
         </transition>
@@ -107,22 +128,22 @@
     </SfSidebar>
   </div>
 </template>
-<script type="module">
+<script>
 import {
   SfSidebar,
   SfHeading,
   SfButton,
-  SfIcon,
   SfProperty,
   SfPrice,
   SfCollectedProduct,
   SfImage,
-  SfLink
+  SfLink,
+  SfQuantitySelector
 } from '@storefront-ui/vue';
-import { computed } from '@vue/composition-api';
+import { computed } from '@nuxtjs/composition-api';
 import { useCart, useUser, cartGetters } from '@vue-storefront/shopify';
-import useUiState from '~/composables/useUiState';
-import { onSSR } from '@vue-storefront/core';
+import { useUiState, useUiNotification } from '~/composables';
+import debounce from 'lodash.debounce';
 
 export default {
   name: 'Cart',
@@ -130,36 +151,67 @@ export default {
     SfSidebar,
     SfButton,
     SfHeading,
-    SfIcon,
+    SfLink,
     SfProperty,
     SfPrice,
     SfCollectedProduct,
     SfImage,
-    SfLink
+    SfQuantitySelector
   },
   setup() {
     const { isCartSidebarOpen, toggleCartSidebar } = useUiState();
-    const { cart, removeItem, updateItemQty, load: loadCart } = useCart();
+    const { cart, removeItem, updateItemQty, loading } = useCart();
     const { isAuthenticated } = useUser();
+    const { send: sendNotification, notifications } = useUiNotification();
     const products = computed(() => cartGetters.getItems(cart.value));
     const totals = computed(() => cartGetters.getTotals(cart.value));
+    const lineItemsSubtotalPrice = computed(() => cartGetters.getSubTotal(cart.value));
     const totalItems = computed(() => cartGetters.getTotalItems(cart.value));
-    const checkoutURL = computed(() => cartGetters.getcheckoutURL(cart.value));
-    onSSR(async () => {
-      await loadCart();
+    const totalDiscount = computed(() => cartGetters.getTotalDiscount(cart.value));
+    const totalSavings = computed(() => {
+      let calculatedTotalSavings = 0;
+      products.value.forEach((item) => {
+        if (item.variant.compareAtPriceV2 !== null) {
+          calculatedTotalSavings +=
+            (parseFloat(item.variant.compareAtPriceV2?.amount) -
+              parseFloat(item.variant.priceV2.amount)) *
+            item.quantity;
+        }
+      });
+      if (totalDiscount.value > 0 || Object.keys(totalDiscount.value).length > 0) {
+        calculatedTotalSavings += totalDiscount.value.percentage ? cart.value.lineItemsSubtotalPrice.amount * totalDiscount.value.percentage/100 : parseFloat(totalDiscount.value.amount);
+      }
+      return calculatedTotalSavings;
     });
+    const checkoutURL = computed(() => cartGetters.getcheckoutURL(cart.value));
+    const handleCheckout = (checkoutUrl) => {
+      setTimeout(() => {
+        window.location.replace(checkoutUrl)
+      }, 400)
+    }
+
+    const updateQuantity = debounce(async ({ product, quantity }) => {
+      await updateItemQty({ product, quantity });
+    }, 300);
 
     return {
+      updateQuantity,
+      loading,
       isAuthenticated,
       products,
       removeItem,
-      updateItemQty,
+      handleCheckout,
+      checkoutURL,
       isCartSidebarOpen,
       toggleCartSidebar,
       totals,
+      lineItemsSubtotalPrice,
       totalItems,
+      totalDiscount,
+      totalSavings,
       cartGetters,
-      checkoutURL
+      sendNotification,
+      notifications
     };
   }
 };
@@ -167,6 +219,8 @@ export default {
 
 <style lang="scss" scoped>
 #cart {
+  --sidebar-z-index: 3;
+  --overlay-z-index: 3;
   @include for-desktop {
     & > * {
       --sidebar-bottom-padding: var(--spacer-base);
@@ -210,12 +264,8 @@ export default {
     padding: 0 var(--spacer-base);
   }
   &__image {
-    --image-width: 13.1875rem;
-    margin: 0 0 var(--spacer-xl) 7.5rem;
-    @include for-desktop {
-      --image-width: 23.3125rem;
-      margin: 0 0 var(--spacer-2xl) 7.5rem;
-    }
+    --image-width: 16rem;
+    margin: 0 0 var(--spacer-2xl) 7.5rem;
   }
   @include for-desktop {
     --heading-title-font-size: var(--font-size--xl);
@@ -227,7 +277,6 @@ export default {
 }
 .collected-product {
   margin: 0 0 var(--spacer-sm) 0;
-  --image-height: 12.5rem;
   &__properties {
     margin: var(--spacer-xs) 0 0 0;
     display: flex;
