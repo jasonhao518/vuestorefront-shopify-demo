@@ -1,12 +1,9 @@
 <template>
   <SfTabs :open-tab="1">
-    <SfTab title="My orders">
+    <SfTab data-cy="order-history-tab_my-orders" title="My orders">
       <div v-if="currentOrder">
-        <SfButton class="sf-button--text all-orders" @click="currentOrder = null">All Orders</SfButton>
-        <div
-          v-e2e="'order-details'"
-          class="highlighted highlighted--total"
-        >
+        <SfButton data-cy="order-history-btn_orders" class="sf-button--text all-orders" @click="currentOrder = null">All Orders</SfButton>
+        <div class="highlighted highlighted--total">
           <SfProperty
             name="Order ID"
             :value="orderGetters.getId(currentOrder)"
@@ -23,8 +20,23 @@
             class="sf-property--full-width property"
           />
           <SfProperty
+            name="Subtotal"
+            :value="$n(orderGetters.getSubtotalPrice(currentOrder), 'currency')"
+            class="sf-property--full-width property"
+          />
+          <SfProperty
+            name="Tax"
+            :value="$n(orderGetters.getTaxPrice(currentOrder), 'currency')"
+            class="sf-property--full-width property"
+          />
+          <SfProperty
             name="Total"
             :value="$n(orderGetters.getPrice(currentOrder), 'currency')"
+            class="sf-property--full-width property"
+          />
+          <SfProperty
+            name="Status"
+            :value="orderGetters.getPaymentStatus(currentOrder)"
             class="sf-property--full-width property"
           />
         </div>
@@ -36,12 +48,12 @@
           </SfTableHeading>
           <SfTableRow v-for="(item, i) in orderGetters.getItems(currentOrder)" :key="i">
             <SfTableData class="products__name">
-              <nuxt-link :to="'/p/'+orderGetters.getItemSku(item)+'/'+orderGetters.getItemSku(item)">
-                {{ orderGetters.getItemName(item) }}
+              <nuxt-link :to="'/p/'+orderGetters.getItemId(item)+'/'+orderGetters.getItemSlug(item)">
+                {{orderGetters.getItemName(item)}}
               </nuxt-link>
             </SfTableData>
-            <SfTableData>{{ orderGetters.getItemQty(item) }}</SfTableData>
-            <SfTableData>{{ $n(orderGetters.getItemPrice(item), 'currency') }}</SfTableData>
+            <SfTableData>{{orderGetters.getItemQty(item)}}</SfTableData>
+            <SfTableData>{{$n(orderGetters.getItemPrice(item), 'currency')}}</SfTableData>
           </SfTableRow>
         </SfTable>
       </div>
@@ -51,58 +63,45 @@
         </p>
         <div v-if="orders.length === 0" class="no-orders">
           <p class="no-orders__title">{{ $t('You currently have no orders') }}</p>
-          <SfButton class="no-orders__button">{{ $t('Start shopping') }}</SfButton>
+          <SfButton data-cy="order-history-btn_start" class="no-orders__button">{{ $t('Start shopping') }}</SfButton>
         </div>
         <SfTable v-else class="orders">
           <SfTableHeading>
             <SfTableHeader
               v-for="tableHeader in tableHeaders"
               :key="tableHeader"
-            >{{ tableHeader }}</SfTableHeader>
-            <SfTableHeader class="orders__element--right" />
+              >{{ tableHeader }}</SfTableHeader>
+            <SfTableHeader class="orders__element--right">
+              <span class="smartphone-only">{{ $t('Download') }}</span>
+              <SfButton
+                data-cy="order-history-btn_download-all"
+                class="desktop-only sf-button--text orders__download-all"
+                @click="downloadOrders()"
+              >
+                {{ $t('Download all') }}
+              </SfButton>
+            </SfTableHeader>
           </SfTableHeading>
-          <SfTableRow v-for="order in orders" :key="orderGetters.getId(order)">
-            <SfTableData v-e2e="'order-number'">{{ orderGetters.getId(order) }}</SfTableData>
-            <SfTableData v-e2e="'order-date'">{{ orderGetters.getDate(order) }}</SfTableData>
-            <SfTableData v-e2e="'order-amount'">{{ $n(orderGetters.getPrice(order), 'currency') }}</SfTableData>
-            <SfTableData v-e2e="'order-status'">
+          <SfTableRow v-for="order in orders.data" :key="orderGetters.getId(order)">
+            <SfTableData>#{{ orderGetters.getId(order) }}</SfTableData>
+            <SfTableData>{{ orderGetters.getDate(order) }}</SfTableData>
+            <SfTableData>{{ $n(orderGetters.getPrice(order), 'currency') }}</SfTableData>
+            <SfTableData>
               <span :class="getStatusTextClass(order)">{{ orderGetters.getStatus(order) }}</span>
             </SfTableData>
             <SfTableData class="orders__view orders__element--right">
-              <SfButton class="sf-button--text desktop-only" @click="currentOrder = order">
+              <SfButton data-cy="order-history-btn_download" class="sf-button--text smartphone-only" @click="downloadOrder(order)">
+                {{ $t('Download') }}
+              </SfButton>
+              <SfButton data-cy="order-history-btn_view" class="sf-button--text desktop-only" @click="currentOrder = order">
                 {{ $t('View details') }}
               </SfButton>
             </SfTableData>
           </SfTableRow>
         </SfTable>
-        <div
-          v-e2e="'order-history-pagination'"
-          class="pagination"
-          v-if="orders.length < totalOrders"
-        >
-          <SfArrow
-            aria-label="prev"
-            class="sf-arrow--left sf-arrow--transparent"
-            :disabled="offset === 0"
-            @click="goPrev(offset)"
-          />
-          <div
-            v-e2e="'order-history-pagination-count'"
-            class="pagination-count"
-          >
-            {{ orders.length > 1 ? `${offset + 1} - ` : "" }} {{ offset + orders.length }}
-            <strong>of</strong> {{ totalOrders }}
-          </div>
-          <SfArrow
-            aria-label="next"
-            class="sf-arrow--right sf-arrow--transparent"
-            :disabled="(offset + orders.length) === totalOrders"
-            @click="goNext(offset)"
-          />
-        </div>
       </div>
     </SfTab>
-    <SfTab title="Returns">
+    <SfTab data-cy="order-history-tab_returns" title="Returns">
       <p class="message">
         This feature is not implemented yet! Please take a look at
         <br />
@@ -113,17 +112,15 @@
   </SfTabs>
 </template>
 
-<script>
+<script type="module">
 import {
   SfTabs,
   SfTable,
   SfButton,
-  SfProperty,
-  SfLink,
-  SfArrow
+  SfProperty
 } from '@storefront-ui/vue';
-import { computed, ref } from '@nuxtjs/composition-api';
-import { useUserOrder, orderGetters } from '@vue-storefront/commercetools';
+import { computed, ref } from '@vue/composition-api';
+import { useUserOrders, orderGetters } from '@vue-storefront/shopify';
 import { AgnosticOrderStatus } from '@vue-storefront/core';
 import { onSSR } from '@vue-storefront/core';
 
@@ -133,26 +130,15 @@ export default {
     SfTabs,
     SfTable,
     SfButton,
-    SfProperty,
-    SfLink,
-    SfArrow
+    SfProperty
   },
+  // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
   setup() {
-    const limit = 10;
-    const { orders, search } = useUserOrder();
+    const { orders, search } = useUserOrders();
     const currentOrder = ref(null);
-
     onSSR(async () => {
-      await search({ limit, offset: 0, sort: 'createdAt desc' });
+      await search();
     });
-
-    const goNext = (offset) => {
-      search({ limit, offset: offset + limit, sort: 'createdAt desc' });
-    };
-
-    const goPrev = (offset) => {
-      search({ limit, offset: offset - limit, sort: 'createdAt desc' });
-    };
 
     const tableHeaders = [
       'Order ID',
@@ -173,15 +159,33 @@ export default {
       }
     };
 
+    const downloadFile = (file, name) => {
+      const a = document.createElement('a');
+      document.body.appendChild(a);
+      a.style = 'display: none';
+
+      const url = window.URL.createObjectURL(file);
+      a.href = url;
+      a.download = name;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    };
+
+    const downloadOrders = async () => {
+      downloadFile(new Blob([JSON.stringify(orders.value)], {type: 'application/json'}), 'orders.json');
+    };
+
+    const downloadOrder = async (order) => {
+      downloadFile(new Blob([JSON.stringify(order)], {type: 'application/json'}), 'order ' + orderGetters.getId(order) + '.json');
+    };
+
     return {
       tableHeaders,
-      orders: computed(() => orders.value?.results ?? []),
-      offset: computed(() => orders.value?.offset ?? 0),
-      totalOrders: computed(() => orderGetters.getOrdersTotal(orders.value)),
+      orders: computed(() => orders ? orders.value : []),
       getStatusTextClass,
-      goNext,
-      goPrev,
       orderGetters,
+      downloadOrder,
+      downloadOrders,
       currentOrder
     };
   }
@@ -189,15 +193,6 @@ export default {
 </script>
 
 <style lang='scss' scoped>
-.pagination {
-  padding-top: var(--spacer-base);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.pagination-count {
-  padding: 0 var(--spacer-base);
-}
 .no-orders {
   &__title {
     margin: 0 0 var(--spacer-lg) 0;
@@ -214,7 +209,7 @@ export default {
   @include for-desktop {
     &__element {
       &--right {
-        --table-column-flex: 1;
+        --table-column-flex: 0;
         text-align: right;
       }
     }

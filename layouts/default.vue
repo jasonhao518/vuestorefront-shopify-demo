@@ -3,13 +3,16 @@
     <LazyHydrate when-visible>
       <TopBar class="desktop-only" />
     </LazyHydrate>
-
-    <AppHeader />
+    <LazyHydrate when-idle>
+      <AppHeader />
+    </LazyHydrate>
 
     <div id="layout">
-      <nuxt :key="route.fullPath"/>
+      <nuxt :key="$route.fullPath"/>
 
-      <BottomNavigation />
+      <LazyHydrate when-visible>
+        <BottomNavigation />
+      </LazyHydrate>
       <CartSidebar />
       <WishlistSidebar />
       <LoginModal />
@@ -31,13 +34,8 @@ import WishlistSidebar from '~/components/WishlistSidebar.vue';
 import LoginModal from '~/components/LoginModal.vue';
 import LazyHydrate from 'vue-lazy-hydration';
 import Notification from '~/components/Notification';
-import { onSSR } from '@vue-storefront/core';
-import { useRoute } from '@nuxtjs/composition-api';
-import { useCart, useStore, useUser, useWishlist } from '@vue-storefront/commercetools';
 
 export default {
-  name: 'DefaultLayout',
-
   components: {
     LazyHydrate,
     TopBar,
@@ -48,27 +46,6 @@ export default {
     WishlistSidebar,
     LoginModal,
     Notification
-  },
-
-  setup() {
-    const route = useRoute();
-    const { load: loadStores } = useStore();
-    const { load: loadUser } = useUser();
-    const { load: loadCart } = useCart();
-    const { load: loadWishlist } = useWishlist();
-
-    onSSR(async () => {
-      await Promise.all([
-        loadStores(),
-        loadUser(),
-        loadCart(),
-        loadWishlist()
-      ]);
-    });
-
-    return {
-      route
-    };
   }
 };
 </script>

@@ -5,10 +5,12 @@
       :breadcrumbs="breadcrumbs"
     />
     <div class="product">
-      <LazyHydrate when-idle>
-        <SfGallery :images="productGallery" class="product__gallery" />
-      </LazyHydrate>
-
+      <SfGallery
+        v-if="productGallery.length > 0"
+        :images="productGallery"
+        :current="ActiveVariantImage + 1"
+        class="product__gallery"
+      />
       <div class="product__info">
         <div class="product__header">
           <SfHeading
@@ -16,6 +18,18 @@
             :level="3"
             class="sf-heading--no-underline sf-heading--left"
           />
+          <SfBadge
+            class="sf-badge--number"
+            :class="
+              productGetters.getStatus(product)
+                ? 'color-success'
+                : 'color-danger'
+            "
+          >
+            {{
+              productGetters.getStatus(product) ? "In stock" : "Out of Stock"
+            }}
+          </SfBadge>
           <SfIcon
             icon="drag"
             size="xxl"
@@ -26,110 +40,81 @@
         <div class="product__price-and-rating">
           <SfPrice
             :regular="$n(productGetters.getPrice(product).regular, 'currency')"
-            :special="productGetters.getPrice(product).special && $n(productGetters.getPrice(product).special, 'currency')"
+            :special="
+              productGetters.getPrice(product).special &&
+              $n(productGetters.getPrice(product).special, 'currency')
+            "
           />
-          <div>
-            <div class="product__rating">
-              <SfRating
-                :score="averageRating"
-                :max="5"
-              />
-              <a v-if="!!totalReviews" href="#" class="product__count">
-                ({{ totalReviews }})
-              </a>
-            </div>
-            <SfButton class="sf-button--text">{{ $t('Read all reviews') }}</SfButton>
-          </div>
+          <div></div>
         </div>
         <div>
-          <p class="product__description desktop-only">
-            {{ description }}
+          <p
+            class="product__description desktop-only"
+            v-if="productDescription"
+          >
+            {{ productDescription }}
           </p>
-          <SfButton class="sf-button--text desktop-only product__guide">
-            {{ $t('Size guide') }}
+          <SfButton
+            data-cy="product-btn_size-guide"
+            class="sf-button--text desktop-only product__guide"
+          >
+            {{ $t("Size guide") }}
           </SfButton>
           <SfSelect
-            v-e2e="'size-select'"
-            v-if="options.size"
-            :value="configuration.size"
-            @input="size => updateFilter({ size })"
+            data-cy="product-select_size"
+            v-if="options.Size"
+            @input="(size) => updateFilter({ size })"
+            :value="configuration.size || options.Size[0].value"
             label="Size"
             class="sf-select--underlined product__select-size"
             :required="true"
           >
             <SfSelectOption
-              v-for="size in options.size"
+              v-for="size in options.Size"
               :key="size.value"
               :value="size.value"
             >
-              {{size.label}}
+              {{ size.value }}
             </SfSelectOption>
           </SfSelect>
-          <div v-if="options.color && options.color.length > 1" class="product__colors desktop-only">
-            <p class="product__color-label">{{ $t('Color') }}:</p>
+          <div
+            v-if="options.Color && options.Color.length > 1"
+            class="product__colors desktop-only"
+          >
+            <p class="product__color-label">{{ $t("Color") }}:</p>
             <SfColor
-              v-for="(color, i) in options.color"
+              data-cy="product-color_update"
+              v-for="(color, i) in options.Color"
               :key="i"
               :color="color.value"
               class="product__color"
-              @click="updateFilter({ color: color.value })"
+              @click="updateFilter({ color })"
+              :selected="
+                configuration.color
+                  ? configuration.color.value === color.value
+                    ? true
+                    : false
+                  : i === 0
+                  ? true
+                  : false
+              "
             />
           </div>
-
-          <div
-            class="product__delivery"
-            v-if="channels.length > 0"
-          >
-            <SfRadio
-              v-e2e="'delivery-option'"
-              name="Delivery"
-              :label="$t('Delivery')"
-              value="delivery"
-              :selected="selectedDelivery"
-              @input="setSelectedDelivery('delivery')"
-            />
-            <SfRadio
-              v-e2e="'click-collect-option'"
-              name="Click & Collect"
-              :label="$t('Pickup in the store')"
-              :details="$t('Free')"
-              value="collect"
-              :selected="selectedDelivery"
-              @input="setSelectedDelivery('collect')"
-            />
-            <SfSelect
-              v-if="selectedDelivery === 'collect'"
-              v-e2e="'channel-select'"
-              v-model="channelId"
-              :label="$t('Select Channel')"
-              class="sf-select--underlined product__select-size"
-            >
-              <SfSelectOption
-                v-for="{ channel } in channels"
-                :key="channel.id"
-                :value="channel.id"
-              >
-                {{channel.name}}
-              </SfSelectOption>
-            </SfSelect>
-          </div>
-
           <SfAddToCart
-            v-e2e="'product_add-to-cart'"
+            data-cy="product-cart_add"
             :stock="stock"
             v-model="qty"
             :disabled="loading"
             :canAddToCart="stock > 0"
             class="product__add-to-cart"
-            @click="addToCart"
+            @click="addItem({ product, quantity: parseInt(qty) })"
           />
         </div>
-
         <LazyHydrate when-idle>
           <SfTabs :open-tab="1" class="product__tabs">
-            <SfTab title="Description">
-              <div class="product__description">
-                {{ $t('Product description') }}
+            <SfTab data-cy="product-tab_description" title="Description">
+              <div class="product__description" v-if="productDescriptionHtml">
+                <div v-html="productDescriptionHtml"></div>
               </div>
               <SfProperty
                 v-for="(property, i) in properties"
@@ -145,34 +130,22 @@
                 </template>
               </SfProperty>
             </SfTab>
-            <SfTab title="Read reviews">
-              <SfReview
-                v-for="review in reviews"
-                :key="reviewGetters.getReviewId(review)"
-                :author="reviewGetters.getReviewAuthor(review)"
-                :date="reviewGetters.getReviewDate(review)"
-                :message="reviewGetters.getReviewMessage(review)"
-                :max-rating="5"
-                :rating="reviewGetters.getReviewRating(review)"
-                :char-limit="250"
-                read-more-text="Read more"
-                hide-full-text="Read less"
-                class="product__review"
-              />
-            </SfTab>
             <SfTab
               title="Additional Information"
+              data-cy="product-tab_additional"
               class="product__additional-info"
             >
               <div class="product__additional-info">
-                <p class="product__additional-info__title">{{ $t('Brand') }}</p>
+                <p class="product__additional-info__title">{{ $t("Brand") }}</p>
                 <p>{{ brand }}</p>
-                <p class="product__additional-info__title">{{ $t('Instruction1') }}</p>
-                <p class="product__additional-info__paragraph">
-                  {{ $t('Instruction2') }}
+                <p class="product__additional-info__title">
+                  {{ $t("Instruction1") }}
                 </p>
                 <p class="product__additional-info__paragraph">
-                  {{ $t('Instruction3') }}
+                  {{ $t("Instruction2") }}
+                </p>
+                <p class="product__additional-info__paragraph">
+                  {{ $t("Instruction3") }}
                 </p>
                 <p>{{ careInstructions }}</p>
               </div>
@@ -181,7 +154,6 @@
         </LazyHydrate>
       </div>
     </div>
-
     <LazyHydrate when-visible>
       <RelatedProducts
         :products="relatedProducts"
@@ -189,11 +161,12 @@
         title="Match it with"
       />
     </LazyHydrate>
-
     <LazyHydrate when-visible>
       <InstagramFeed />
     </LazyHydrate>
-
+    <LazyHydrate when-visible>
+      <MobileStoreBanner />
+    </LazyHydrate>
   </div>
 </template>
 <script>
@@ -202,13 +175,13 @@ import {
   SfHeading,
   SfPrice,
   SfRating,
-  SfRadio,
   SfSelect,
   SfAddToCart,
   SfTabs,
   SfGallery,
   SfIcon,
   SfImage,
+  SfBadge,
   SfBanner,
   SfAlert,
   SfSticky,
@@ -220,95 +193,75 @@ import {
 
 import InstagramFeed from '~/components/InstagramFeed.vue';
 import RelatedProducts from '~/components/RelatedProducts.vue';
-import { ref, computed, useRoute, useRouter } from '@nuxtjs/composition-api';
-import {
-  useProduct,
-  useCart,
-  productGetters,
-  useReview,
-  reviewGetters,
-  useStore
-} from '@vue-storefront/commercetools';
-import { onSSR } from '@vue-storefront/core';
+import { ref, computed } from '@vue/composition-api';
+import { useProduct, useCart, productGetters } from '@vue-storefront/shopify';
+import MobileStoreBanner from '~/components/MobileStoreBanner.vue';
 import LazyHydrate from 'vue-lazy-hydration';
-import cacheControl from './../helpers/cacheControl';
+import { onSSR } from '@vue-storefront/core';
 
 export default {
   name: 'Product',
   transition: 'fade',
-  middleware: cacheControl({
-    'max-age': 60,
-    'stale-when-revalidate': 5
-  }),
-  setup() {
+  // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+  setup(props, context) {
     const qty = ref(1);
-    const route = useRoute();
-    const router = useRouter();
+    const { slug } = context.root.$route.params;
     const { products, search } = useProduct('products');
-    const { products: relatedProducts, search: searchRelatedProducts, loading: relatedLoading } = useProduct('relatedProducts');
+    const {
+      products: relatedProducts,
+      search: searchRelatedProducts,
+      loading: relatedLoading
+    } = useProduct('relatedProducts');
     const { addItem, loading } = useCart();
-    const { reviews: productReviews, search: searchReviews } = useReview('productReviews');
-    const { response: stores } = useStore();
 
-    // to be added on local useStore factory
-    function getSelected(stores) {
-      return stores.results?.find((result) => result.key === stores._selectedStore);
-    }
-
-    const product = computed(() => productGetters.getFiltered(products.value, { master: true, attributes: route.value.query })[0]);
-    const options = computed(() => productGetters.getAttributes(products.value, ['color', 'size']));
-    const configuration = computed(() => productGetters.getAttributes(product.value, ['color', 'size']));
-    const categories = computed(() => productGetters.getCategoryIds(product.value));
-    const reviews = computed(() => reviewGetters.getItems(productReviews.value));
-    const selectedStore = computed(() => getSelected(stores.value));
-
-    const channelId = ref(null);
-    const channels = computed(() => {
-      const productChannels = product.value?.availability?.channels?.results ?? [];
-      return productChannels;
-    });
-    const selectedDelivery = ref(null);
-    const setSelectedDelivery = option => selectedDelivery.value = option;
-
-    const selectedChannel = computed(() => {
-      if (selectedDelivery.value !== 'collect') return null;
-      const selected = channels.value.find((item) => (item.channel.id === channelId.value));
-
-      return (selected?.channel?.roles && selected?.channel?.id) ? {
-        ...(selected.channel.roles.includes('InventorySupply') && { supplyChannel: selected.channel.id }),
-        ...(selected.channel.roles.includes('ProductDistribution') && { distributionChannel: selected.channel.id })
-      } : null;
+    const product = computed(
+      () =>
+        productGetters.getFiltered(products.value, {
+          master: true,
+          attributes: context.root.$route.query
+        })[0]
+    );
+    const productDescription = computed(() =>
+      productGetters.getDescription(product.value)
+    );
+    const productDescriptionHtml = computed(() =>
+      productGetters.getDescription(product.value, true)
+    );
+    const options = computed(() =>
+      productGetters.getAttributes(products.value)
+    );
+    const configuration = computed(() => {
+      return productGetters.getSelectedVariant(
+        products.value,
+        context.root.$route.query
+      );
     });
 
-    const addToCart = () => {
-      addItem({
-        product: {
-          id: product.value.id,
-          sku: product.value.sku
-        },
-        quantity: parseInt(qty.value),
-        customQuery: selectedChannel.value
-      });
-    };
-
-    // TODO: Breadcrumbs are temporary disabled because productGetters return undefined. We have a mocks in data
-    // const breadcrumbs = computed(() => productGetters.getBreadcrumbs ? productGetters.getBreadcrumbs(product.value) : props.fallbackBreadcrumbs);
-    const productGallery = computed(() => productGetters.getGallery(product.value).map(img => ({
-      mobile: { url: img.small },
-      desktop: { url: img.normal },
-      big: { url: img.big },
-      alt: product.value._name || product.value.name
-    })));
+    const breadcrumbs = computed(() =>
+      productGetters.getBreadcrumbs
+        ? productGetters.getBreadcrumbs(product.value)
+        : props.fallbackBreadcrumbs
+    );
+    const productGallery = computed(() =>
+      productGetters.getGallery(product.value).map((img) => ({
+        mobile: { url: img.small },
+        desktop: { url: img.normal },
+        big: { url: img.big },
+        alt: product.value._name || product.value.name
+      }))
+    );
+    const ActiveVariantImage = computed(() => {
+      return productGetters.getVariantImage(product.value) || 0;
+    });
 
     onSSR(async () => {
-      await search({ id: route.value.params.id });
-      await searchRelatedProducts({ catId: [categories.value[0]], limit: 8 });
-      await searchReviews({ productId: route.value.params.id });
+      await search({ slug });
+      await searchRelatedProducts({ catId: 123, limit: 8 });
     });
 
     const updateFilter = (filter) => {
-      router.push({
-        path: route.value.path,
+      context.root.$router.push({
+        path: context.root.$route.path,
         query: {
           ...configuration.value,
           ...filter
@@ -317,28 +270,23 @@ export default {
     };
 
     return {
-      addToCart,
       updateFilter,
       configuration,
       product,
-      products,
-      reviews,
-      reviewGetters,
-      averageRating: computed(() => productGetters.getAverageRating(product.value)),
-      totalReviews: computed(() => productGetters.getTotalReviews(product.value)),
-      relatedProducts: computed(() => productGetters.getFiltered(relatedProducts.value, { master: true })),
+      productDescription,
+      productDescriptionHtml,
+      ActiveVariantImage,
+      relatedProducts: computed(() =>
+        productGetters.getFiltered(relatedProducts.value, { master: true })
+      ),
       relatedLoading,
       options,
+      breadcrumbs,
       qty,
+      addItem,
       loading,
       productGetters,
-      productGallery,
-      channels,
-      channelId,
-      selectedChannel,
-      selectedStore,
-      selectedDelivery,
-      setSelectedDelivery
+      productGallery
     };
   },
   components: {
@@ -348,7 +296,6 @@ export default {
     SfHeading,
     SfPrice,
     SfRating,
-    SfRadio,
     SfSelect,
     SfAddToCart,
     SfTabs,
@@ -358,12 +305,15 @@ export default {
     SfBanner,
     SfSticky,
     SfReview,
+    SfBadge,
     SfBreadcrumbs,
     SfButton,
     InstagramFeed,
     RelatedProducts,
+    MobileStoreBanner,
     LazyHydrate
   },
+  // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
   data() {
     return {
       stock: 5,
@@ -385,31 +335,12 @@ export default {
           value: 'Germany'
         }
       ],
-      description: 'Find stunning women cocktail and party dresses. Stand out in lace and metallic cocktail dresses and party dresses from all your favorite brands.',
+      description:
+        'Find stunning women cocktail and party dresses. Stand out in lace and metallic cocktail dresses and party dresses from all your favorite brands.',
       detailsIsActive: false,
       brand:
         'Brand name is the perfect pairing of quality and design. This label creates major everyday vibes with its collection of modern brooches, silver and gold jewellery, or clips it back with hair accessories in geo styles.',
-      careInstructions: 'Do not wash!',
-      breadcrumbs: [
-        {
-          text: 'Home',
-          route: {
-            link: '#'
-          }
-        },
-        {
-          text: 'Category',
-          route: {
-            link: '#'
-          }
-        },
-        {
-          text: 'Pants',
-          route: {
-            link: '#'
-          }
-        }
-      ]
+      careInstructions: 'Do not wash!'
     };
   }
 };
@@ -466,11 +397,11 @@ export default {
   }
   &__count {
     @include font(
-        --count-font,
-        var(--font-weight--normal),
-        var(--font-size--sm),
-        1.4,
-        var(--font-family--secondary)
+      --count-font,
+      var(--font-weight--normal),
+      var(--font-size--sm),
+      1.4,
+      var(--font-family--secondary)
     );
     color: var(--c-text);
     text-decoration: none;
@@ -478,11 +409,11 @@ export default {
   }
   &__description {
     @include font(
-        --product-description-font,
-        var(--font-weight--light),
-        var(--font-size--base),
-        1.6,
-        var(--font-family--primary)
+      --product-description-font,
+      var(--font-weight--light),
+      var(--font-size--base),
+      1.6,
+      var(--font-family--primary)
     );
   }
   &__select-size {
@@ -493,11 +424,11 @@ export default {
   }
   &__colors {
     @include font(
-        --product-color-font,
-        var(--font-weight--normal),
-        var(--font-size--lg),
-        1.6,
-        var(--font-family--secondary)
+      --product-color-font,
+      var(--font-weight--normal),
+      var(--font-size--lg),
+      1.6,
+      var(--font-family--secondary)
     );
     display: flex;
     align-items: center;
@@ -525,7 +456,6 @@ export default {
     margin-top: 0;
   }
   &__tabs {
-    --tabs-title-z-index: 0;
     margin: var(--spacer-lg) auto var(--spacer-2xl);
     --tabs-title-font-size: var(--font-size--lg);
     @include for-desktop {
@@ -546,11 +476,11 @@ export default {
   &__additional-info {
     color: var(--c-link);
     @include font(
-        --additional-info-font,
-        var(--font-weight--light),
-        var(--font-size--sm),
-        1.6,
-        var(--font-family--primary)
+      --additional-info-font,
+      var(--font-weight--light),
+      var(--font-size--sm),
+      1.6,
+      var(--font-family--primary)
     );
     &__title {
       font-weight: var(--font-weight--normal);
@@ -570,6 +500,34 @@ export default {
 }
 .breadcrumbs {
   margin: var(--spacer-base) auto var(--spacer-lg);
+}
+.banner-app {
+  --banner-container-width: 100%;
+  --banner-title-margin: var(--spacer-base) 0 var(--spacer-xl) 0;
+  --banner-padding: 0 var(--spacer-2xl);
+  --banner-title-font-size: var(--h1-font-size);
+  --banner-subtitle-font-size: var(--font-size--xl);
+  --banner-title-font-weight: var(--font-weight--semibold);
+  --banner-subtitle-font-weight: var(--font-weight--medium);
+  --banner-title-text-transform: capitalize;
+  --banner-subtitle-text-transform: capitalize;
+  display: block;
+  min-height: 26.25rem;
+  max-width: 65rem;
+  margin: 0 auto;
+  padding: 0 calc(25% + var(--spacer-2xl)) 0 var(--spacer-xl);
+  &__call-to-action {
+    --button-background: transparent;
+    display: flex;
+  }
+  &__button {
+    --image-width: 8.375rem;
+    --image-height: 2.75rem;
+    --button-padding: 0;
+    & + & {
+      margin: 0 0 0 calc(var(--spacer-xl) / 2);
+    }
+  }
 }
 @keyframes moveicon {
   0% {

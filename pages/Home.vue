@@ -1,19 +1,17 @@
 <template>
   <div id="home">
-    <LazyHydrate when-idle>
-      <SfHero class="hero">
-        <SfHeroItem
-          v-for="(hero, i) in heroes"
-          :key="i"
-          :title="hero.title"
-          :subtitle="hero.subtitle"
-          :background="hero.background"
-          :image="hero.image"
-          :class="hero.className"
-        />
-      </SfHero>
-    </LazyHydrate>
-
+    <SfHero class="hero">
+      <SfHeroItem
+        v-for="(hero, i) in heroes"
+        :key="i"
+        :title="hero.title"
+        :subtitle="hero.subtitle"
+        :button-text="hero.buttonText"
+        :background="hero.background"
+        :image="hero.image"
+        :class="hero.className"
+      />
+    </SfHero>
     <LazyHydrate when-visible>
       <SfBannerGrid :banner-grid="1" class="banner-grid">
         <template v-for="item in banners" v-slot:[item.slot]>
@@ -23,54 +21,18 @@
             :subtitle="item.subtitle"
             :description="item.description"
             :button-text="item.buttonText"
-            :link="localePath(item.link)"
             :image="item.image"
             :class="item.class"
           />
         </template>
       </SfBannerGrid>
     </LazyHydrate>
-
     <LazyHydrate when-visible>
-      <div class="similar-products">
-        <SfHeading title="Match with it" :level="2"/>
-        <nuxt-link :to="localePath('/c/women')" class="smartphone-only">
-          {{ $t('See all') }}
-        </nuxt-link>
-      </div>
-    </LazyHydrate>
-
-    <LazyHydrate when-visible>
-        <SfCarousel class="carousel" :settings="{ peek: 16, breakpoints: { 1023: { peek: 0, perView: 2 } } }">
-          <template #prev="{go}">
-            <SfArrow
-              aria-label="prev"
-              class="sf-arrow--left sf-arrow--long"
-              @click="go('prev')"
-            />
-          </template>
-          <template #next="{go}">
-            <SfArrow
-              aria-label="next"
-              class="sf-arrow--right sf-arrow--long"
-              @click="go('next')"
-            />
-          </template>
-          <SfCarouselItem class="carousel__item" v-for="(product, i) in products" :key="i">
-            <SfProductCard
-              :title="product.title"
-              :image="product.image"
-              :regular-price="product.price.regular"
-              :max-rating="product.rating.max"
-              :score-rating="product.rating.score"
-              :show-add-to-cart-button="true"
-              :is-on-wishlist="product.isInWishlist"
-              :link="localePath({ name: 'home' })"
-              class="carousel__item__product"
-              @click:wishlist="toggleWishlist(i)"
-            />
-          </SfCarouselItem>
-        </SfCarousel>
+      <RelatedProducts
+        :products="products"
+        :loading="productsLoading"
+        title="Match it with"
+      />
     </LazyHydrate>
 
     <LazyHydrate when-visible>
@@ -78,61 +40,77 @@
         title="Subscribe to Newsletters"
         button-text="Subscribe"
         description="Be aware of upcoming sales and events. Receive gifts and special offers!"
-        image="/homepage/newsletter.webp"
+        image="https://cdn.shopify.com/s/files/1/0407/1902/4288/files/newsletter_1240x202.jpg?v=1616496568"
         class="call-to-action"
-      >
-        <template #button>
-          <SfButton
-            class="sf-call-to-action__button"
-            data-testid="cta-button"
-            @click="toggleNewsletterModal"
-          >
-            {{ $t('Subscribe') }}
-          </SfButton>
-        </template>
-      </SfCallToAction>
+      />
     </LazyHydrate>
-
-    <LazyHydrate when-visible>
-      <NewsletterModal @email-submitted="onSubscribe" />
-    </LazyHydrate>
-
     <LazyHydrate when-visible>
       <InstagramFeed />
     </LazyHydrate>
 
+    <LazyHydrate when-visible>
+      <MobileStoreBanner />
+    </LazyHydrate>
   </div>
 </template>
-<script>
+<script type="module">
 import {
-  SfHero,
-  SfBanner,
-  SfCallToAction,
-  SfSection,
-  SfCarousel,
-  SfProductCard,
-  SfImage,
-  SfBannerGrid,
-  SfHeading,
-  SfArrow,
-  SfButton
+  /* webpackChunkName: 'SfHero' */ SfHero,
+  /* webpackChunkName: 'SfBanner' */ SfBanner,
+  /* webpackChunkName: 'SfCallToAction' */ SfCallToAction,
+  /* webpackChunkName: 'SfSection' */ SfSection,
+  /* webpackChunkName: 'SfCarousel' */ SfCarousel,
+  /* webpackChunkName: 'SfProductCard' */ SfProductCard,
+  /* webpackChunkName: 'SfImage' */ SfImage,
+  /* webpackChunkName: 'SfBannerGrid' */ SfBannerGrid,
+  /* webpackChunkName: 'SfHeading' */ SfHeading,
+  /* webpackChunkName: 'SfArrow' */ SfArrow,
+  /* webpackChunkName: 'SfButton' */ SfButton
 } from '@storefront-ui/vue';
-import { ref, useContext } from '@nuxtjs/composition-api';
+import RelatedProducts from '~/components/RelatedProducts.vue';
 import InstagramFeed from '~/components/InstagramFeed.vue';
-import NewsletterModal from '~/components/NewsletterModal.vue';
+import {
+  /* webpackChunkName: 'useProduct' */ useProduct,
+  /* webpackChunkName: 'useCart' */ useCart,
+  /* webpackChunkName: 'productGetters' */ productGetters
+} from '@vue-storefront/shopify';
+import {
+  /* webpackChunkName: 'computed' */ computed
+} from '@vue/composition-api';
+import { onSSR } from '@vue-storefront/core';
+import MobileStoreBanner from '~/components/MobileStoreBanner.vue';
 import LazyHydrate from 'vue-lazy-hydration';
-import { useUiState } from '../composables';
-import cacheControl from './../helpers/cacheControl';
 
 export default {
   name: 'Home',
-  middleware: cacheControl({
-    'max-age': 60,
-    'stale-when-revalidate': 5
-  }),
+  // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+  setup() {
+    const {
+      products: relatedProducts,
+      search: productsSearch,
+      loading: productsLoading
+    } = useProduct('relatedProducts');
+    const { cart, load: loadCart, addItem: addToCart, isInCart } = useCart();
+
+    onSSR(async () => {
+      await productsSearch({ catId: 123, limit: 8 });
+      await loadCart();
+    });
+    return {
+      products: computed(() =>
+        productGetters.getFiltered(relatedProducts.value, { master: true })
+      ),
+      getChkId: computed(() => cart.value.id),
+      productsLoading,
+      productGetters,
+      addToCart,
+      isInCart
+    };
+  },
   components: {
     InstagramFeed,
     SfHero,
+    RelatedProducts,
     SfBanner,
     SfCallToAction,
     SfSection,
@@ -143,158 +121,145 @@ export default {
     SfHeading,
     SfArrow,
     SfButton,
-    NewsletterModal,
+    MobileStoreBanner,
     LazyHydrate
   },
-  setup() {
-    const { $config } = useContext();
-    const { toggleNewsletterModal } = useUiState();
-    const products = ref([
-      {
-        title: 'Cream Beach Bag',
-        image: '/homepage/productA.webp',
-        price: { regular: '50.00 $' },
-        rating: { max: 5, score: 4 },
-        isInWishlist: true
-      },
-      {
-        title: 'Cream Beach Bag',
-        image: '/homepage/productB.webp',
-        price: { regular: '50.00 $' },
-        rating: { max: 5, score: 4 },
-        isInWishlist: false
-      },
-      {
-        title: 'Cream Beach Bag',
-        image: '/homepage/productC.webp',
-        price: { regular: '50.00 $' },
-        rating: { max: 5, score: 4 },
-        isInWishlist: false
-      },
-      {
-        title: 'Cream Beach Bag',
-        image: '/homepage/productA.webp',
-        price: { regular: '50.00 $' },
-        rating: { max: 5, score: 4 },
-        isInWishlist: false
-      },
-      {
-        title: 'Cream Beach Bag',
-        image: '/homepage/productB.webp',
-        price: { regular: '50.00 $' },
-        rating: { max: 5, score: 4 },
-        isInWishlist: false
-      },
-      {
-        title: 'Cream Beach Bag',
-        image: '/homepage/productC.webp',
-        price: { regular: '50.00 $' },
-        rating: { max: 5, score: 4 },
-        isInWishlist: false
-      },
-      {
-        title: 'Cream Beach Bag',
-        image: '/homepage/productA.webp',
-        price: { regular: '50.00 $' },
-        rating: { max: 5, score: 4 },
-        isInWishlist: false
-      },
-      {
-        title: 'Cream Beach Bag',
-        image: '/homepage/productB.webp',
-        price: { regular: '50.00 $' },
-        rating: { max: 5, score: 4 },
-        isInWishlist: false
-      }
-    ]);
-    const heroes = [
-      {
-        title: 'Colorful summer dresses are already in store',
-        subtitle: 'SUMMER COLLECTION 2019',
-        background: '#eceff1',
-        image: '/homepage/bannerH.webp'
-      },
-      {
-        title: 'Colorful summer dresses are already in store',
-        subtitle: 'SUMMER COLLECTION 2019',
-        background: '#efebe9',
-        image: '/homepage/bannerA.webp',
-        className:
-          'sf-hero-item--position-bg-top-left sf-hero-item--align-right'
-      },
-      {
-        title: 'Colorful summer dresses are already in store',
-        subtitle: 'SUMMER COLLECTION 2019',
-        background: '#fce4ec',
-        image: '/homepage/bannerB.webp'
-      }
-    ];
-    const banners = [
-      {
-        slot: 'banner-A',
-        subtitle: 'Dresses',
-        title: 'Cocktail & Party',
-        description:
-          'Find stunning women\'s cocktail dresses and party dresses. Stand out in lace and metallic cocktail dresses from all your favorite brands.',
-        buttonText: 'Shop now',
-        image: {
-          mobile: $config.theme.home.bannerA.image.mobile,
-          desktop: $config.theme.home.bannerA.image.desktop
-        },
-        class: 'sf-banner--slim desktop-only',
-        link: $config.theme.home.bannerA.link
-      },
-      {
-        slot: 'banner-B',
-        subtitle: 'Dresses',
-        title: 'Linen Dresses',
-        description:
-          'Find stunning women\'s cocktail dresses and party dresses. Stand out in lace and metallic cocktail dresses from all your favorite brands.',
-        buttonText: 'Shop now',
-        image: $config.theme.home.bannerB.image,
-        class: 'sf-banner--slim banner-central desktop-only',
-        link: $config.theme.home.bannerB.link
-      },
-      {
-        slot: 'banner-C',
-        subtitle: 'T-Shirts',
-        title: 'The Office Life',
-        image: $config.theme.home.bannerC.image,
-        class: 'sf-banner--slim banner__tshirt',
-        link: $config.theme.home.bannerC.link
-      },
-      {
-        slot: 'banner-D',
-        subtitle: 'Summer Sandals',
-        title: 'Eco Sandals',
-        image: $config.theme.home.bannerD.image,
-        class: 'sf-banner--slim',
-        link: $config.theme.home.bannerD.link
-      }
-    ];
-
-    const onSubscribe = (emailAddress) => {
-      console.log(`Email ${emailAddress} was added to newsletter.`);
-      toggleNewsletterModal();
-    };
-
-    const toggleWishlist = (index) => {
-      products.value[index].isInWishlist = !products.value[index].isInWishlist;
-    };
-
+  // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+  data() {
     return {
-      toggleWishlist,
-      toggleNewsletterModal,
-      onSubscribe,
-      banners,
-      heroes,
-      products
+      heroes: [
+        {
+          title: 'Colorful summer dresses are already in store',
+          subtitle: 'SUMMER COLLECTION 2021',
+          buttonText: 'Learn more',
+          background: '#eceff1',
+          image: {
+            mobile:
+              'https://cdn.shopify.com/s/files/1/0407/1902/4288/files/bannerB_328x224.jpg',
+            desktop:
+              'https://cdn.shopify.com/s/files/1/0407/1902/4288/files/bannerB_1240x400.jpg'
+          },
+          link: '/c/women/women-clothing-shirts'
+        },
+        {
+          title: 'Colorful summer dresses are already in store',
+          subtitle: 'SUMMER COLLECTION 2021',
+          buttonText: 'Learn more',
+          background: '#fce4ec',
+          image: {
+            mobile:
+              'https://cdn.shopify.com/s/files/1/0407/1902/4288/files/bannerH_328x224.jpg',
+            desktop:
+              'https://cdn.shopify.com/s/files/1/0407/1902/4288/files/bannerH_1240x400.jpg'
+          },
+          link: '/c/women/women-clothing-dresses'
+        },
+        {
+          title: 'Colorful summer dresses are already in store',
+          subtitle: 'SUMMER COLLECTION 2021',
+          buttonText: 'Learn more',
+          background: '#efebe9',
+          image: {
+            mobile:
+              'https://cdn.shopify.com/s/files/1/0407/1902/4288/files/bannerA_328x224.jpg',
+            desktop:
+              'https://cdn.shopify.com/s/files/1/0407/1902/4288/files/bannerA_1240x400.jpg'
+          },
+          link: '/c/women/women-shoes-sandals',
+          className:
+            'sf-hero-item--position-bg-top-left sf-hero-item--align-right'
+        }
+      ],
+      banners: [
+        {
+          slot: 'banner-A',
+          subtitle: 'Dresses',
+          title: 'Cocktail & Party',
+          description:
+            'Find stunning women\'s cocktail dresses and party dresses. Stand out in lace and metallic cocktail dresses from all your favorite brands.',
+          buttonText: 'Shop now',
+          image: {
+            mobile:
+              'https://cdn.shopify.com/s/files/1/0407/1902/4288/files/bannerB_328x343.jpg',
+            desktop:
+              'https://cdn.shopify.com/s/files/1/0407/1902/4288/files/bannerF_332x840.jpg'
+          },
+          class: 'sf-banner--slim desktop-only',
+          link: '/c/women/women-clothing-skirts'
+        },
+        {
+          slot: 'banner-B',
+          subtitle: 'Dresses',
+          title: 'Linen Dresses',
+          description:
+            'Find stunning women\'s cocktail dresses and party dresses. Stand out in lace and metallic cocktail dresses from all your favorite brands.',
+          buttonText: 'Shop now',
+          image: {
+            mobile:
+              'https://cdn.shopify.com/s/files/1/0407/1902/4288/files/bannerE_328x343.jpg',
+            desktop:
+              'https://cdn.shopify.com/s/files/1/0407/1902/4288/files/bannerE_496x840.jpg'
+          },
+          class: 'sf-banner--slim banner-central desktop-only',
+          link: '/c/women/women-clothing-dresses'
+        },
+        {
+          slot: 'banner-C',
+          subtitle: 'T-Shirts',
+          title: 'The Office Life',
+          image: {
+            mobile:
+              'https://cdn.shopify.com/s/files/1/0407/1902/4288/files/bannerC_328x343.jpg',
+            desktop:
+              'https://cdn.shopify.com/s/files/1/0407/1902/4288/files/bannerC_332x400.jpg'
+          },
+          class: 'sf-banner--slim banner__tshirt',
+          link: '/c/women/women-clothing-shirts'
+        },
+        {
+          slot: 'banner-D',
+          subtitle: 'Summer Sandals',
+          title: 'Eco Sandals',
+          image: {
+            mobile:
+              'https://cdn.shopify.com/s/files/1/0407/1902/4288/files/bannerG_328x343.jpg',
+            desktop:
+              'https://cdn.shopify.com/s/files/1/0407/1902/4288/files/bannerG_332x400.jpg'
+          },
+          class: 'sf-banner--slim',
+          link: '/c/women/women-shoes-sandals'
+        }
+      ]
     };
+  },
+  methods: {
+    // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+    toggleWishlist(index) {
+      this.products[index].isInWishlist = !this.products[index].isInWishlist;
+    }
   }
 };
 </script>
 
 <style lang="scss" scoped>
+.article-meta h4 a {
+  color: #111111;
+  font-weight: 600;
+  font-size: 20px;
+}
+.article-meta {
+  margin-top: 10px;
+}
+.article-item__meta-item:not(:last-child)::after {
+  display: inline-block;
+  content: "";
+  width: 5px;
+  height: 5px;
+  margin: -1px 10px 0 10px;
+  border-radius: 100%;
+  background: rgba(0, 0, 0, 0.4);
+  vertical-align: middle;
+}
 #home {
   box-sizing: border-box;
   padding: 0 var(--spacer-sm);
@@ -308,6 +273,9 @@ export default {
 .hero {
   margin: var(--spacer-xl) auto var(--spacer-lg);
   --hero-item-background-position: center;
+  ::v-deep .sf-link:hover {
+    color: var(--c-white);
+  }
   @include for-desktop {
     margin: var(--spacer-xl) auto var(--spacer-2xl);
   }
@@ -316,20 +284,18 @@ export default {
       --hero-item-background-position: left;
       @include for-mobile {
         --hero-item-background-position: 30%;
-        ::v-deep .sf-hero-item__subtitle,
-        ::v-deep .sf-hero-item__title {
-          text-align: right;
-          width: 100%;
-          padding-left: var(--spacer-sm);
-        }
+        --hero-item-wrapper-text-align: right;
+        --hero-item-subtitle-width: 100%;
+        --hero-item-title-width: 100%;
+        --hero-item-wrapper-padding: var(--spacer-sm) var(--spacer-sm)
+          var(--spacer-sm) var(--spacer-2xl);
       }
     }
   }
-  ::v-deep .sf-hero__control {
-    &--right, &--left {
-      display: none;
-    }
-  }
+}
+
+::v-deep .sf-hero__controls {
+  --hero-controls-display: none;
 }
 
 .banner-grid {
@@ -342,7 +308,6 @@ export default {
     margin: var(--spacer-2xl) 0;
     ::v-deep .sf-link {
       --button-width: auto;
-      text-decoration: none;
     }
   }
 }
@@ -381,7 +346,7 @@ export default {
 }
 
 .carousel {
-    margin: 0 calc(0 - var(--spacer-sm)) 0 0;
+  margin: 0 calc(var(--spacer-sm) * -1) 0 0;
   @include for-desktop {
     margin: 0;
   }
@@ -394,11 +359,5 @@ export default {
       --product-card-add-button-transform: translate3d(0, 30%, 0);
     }
   }
-  ::v-deep .sf-arrow--long .sf-arrow--right {
-    --arrow-icon-transform: rotate(180deg);
-     -webkit-transform-origin: center;
-     transform-origin: center;
-  }
 }
-
 </style>

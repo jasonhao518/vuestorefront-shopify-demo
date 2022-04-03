@@ -2,21 +2,20 @@
   <div>
     <SfAddressPicker
       :selected="String(currentAddressId)"
-      @change="setCurrentAddress($event)"
+      @input="setCurrentAddress($event)"
       class="billing__addresses"
     >
       <SfAddress
         v-for="billingAddress in billingAddresses"
         :key="userBillingGetters.getId(billingAddress)"
         :name="String(userBillingGetters.getId(billingAddress))"
-        class="billing__address"
       >
         <span
           >{{ userBillingGetters.getFirstName(billingAddress) }} {{ userBillingGetters.getLastName(billingAddress) }}</span
         >
         <span
           >{{ userBillingGetters.getStreetName(billingAddress) }}
-          {{ userBillingGetters.getStreetNumber(billingAddress) }}</span
+          {{ userBillingGetters.getApartmentNumber(billingAddress) }}</span
         >
         <span>{{ userBillingGetters.getPostCode(billingAddress) }}</span>
         <span
@@ -28,30 +27,36 @@
       </SfAddress>
     </SfAddressPicker>
     <SfCheckbox
-      :selected="value"
-      @change="$emit('input', $event)"
+      data-cy="billing-details-checkbox_isDefault"
+      :selected="setAsDefault"
+      @change="$emit('changeSetAsDefault', $event)"
       name="setAsDefault"
       label="Use this address as my default one."
-      class="billing__setAsDefault"
+      class="billing-address-setAsDefault"
     />
   </div>
 </template>
 
-<script>
+<script type="module">
 import {
   SfCheckbox,
   SfAddressPicker
 } from '@storefront-ui/vue';
-import { useUserBilling, userBillingGetters } from '@vue-storefront/commercetools';
+import { userBillingGetters } from '@vue-storefront/shopify';
+
 export default {
   name: 'UserBillingAddresses',
   props: {
     currentAddressId: {
-      type: String | Number,
+      type: Number,
       required: true
     },
-    value: {
+    setAsDefault: {
       type: Boolean,
+      required: true
+    },
+    billingAddresses: {
+      type: Array,
       required: true
     }
   },
@@ -59,17 +64,11 @@ export default {
     SfCheckbox,
     SfAddressPicker
   },
+  // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
   setup (_, { emit }) {
-    const { billing: userBilling } = useUserBilling();
-    const setCurrentAddress = async addressId => {
-      const selectedAddress = userBillingGetters.getAddresses(userBilling.value, { id: addressId });
-      if (!selectedAddress || !selectedAddress.length) {
-        return;
-      }
-      emit('setCurrentAddress', selectedAddress[0]);
-    };
+    const setCurrentAddress = $event => emit('setCurrentAddress', $event);
+
     return {
-      billingAddresses: userBillingGetters.getAddresses(userBilling.value),
       setCurrentAddress,
       userBillingGetters
     };
@@ -77,22 +76,13 @@ export default {
 };
 </script>
 
-<style lang="scss" scoped>
-  .billing {
-    &__address {
-      margin-bottom: var(--spacer-base);
-      @include for-desktop {
-        margin-right: var(--spacer-sm);
-      }
-    }
-    &__addresses {
-      margin-bottom: var(--spacer-xl);
-      @include for-desktop {
-        display: flex;
-      }
-    }
-    &__setAsDefault {
-      margin-bottom: var(--spacer-xl);
-    }
+<style>
+  .billing__addresses {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    margin-bottom: var(--spacer-xl);
+  }
+  .billing-address-setAsDefault, .form__action-button--margin-bottom {
+    margin-bottom: var(--spacer-xl);
   }
 </style>

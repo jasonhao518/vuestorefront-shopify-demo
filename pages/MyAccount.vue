@@ -5,53 +5,53 @@
       :breadcrumbs="breadcrumbs"
     />
     <SfContentPages
-      v-e2e="'my-account-content-pages'"
+      data-cy="my-account_content-pages"
       title="My Account"
       :active="activePage"
       class="my-account"
       @click:change="changeActivePage"
     >
       <SfContentCategory title="Personal Details">
-        <SfContentPage title="My profile">
+        <SfContentPage data-cy="my-account-page_my-profile" title="My profile">
           <MyProfile />
         </SfContentPage>
 
-        <SfContentPage title="Shipping details">
+        <SfContentPage data-cy="my-account-page_shipping-details" title="Shipping details">
           <ShippingDetails />
         </SfContentPage>
 
-        <SfContentPage title="Billing details">
+        <SfContentPage data-cy="my-account-page_billing-details" title="Billing details">
           <BillingDetails />
         </SfContentPage>
 
-        <SfContentPage title="My newsletter">
+        <SfContentPage data-cy="my-account-page_my-newsletter" title="My newsletter">
           <MyNewsletter />
         </SfContentPage>
       </SfContentCategory>
 
       <SfContentCategory title="Order details">
-        <SfContentPage title="Order history">
+        <SfContentPage data-cy="my-account-page_order-history" title="Order history">
           <OrderHistory />
         </SfContentPage>
+
+        
       </SfContentCategory>
 
-      <SfContentPage title="Log out" />
+      <SfContentPage data-cy="my-account-page_log-out" title="Log out" />
     </SfContentPages>
   </div>
 </template>
-<script>
+<script type="module">
 import { SfBreadcrumbs, SfContentPages } from '@storefront-ui/vue';
-import { computed, onBeforeUnmount, useRoute, useRouter } from '@nuxtjs/composition-api';
-import { useUser } from '@vue-storefront/commercetools';
+import { computed } from '@vue/composition-api';
+import { useUser } from '@vue-storefront/shopify';
 import MyProfile from './MyAccount/MyProfile';
 import ShippingDetails from './MyAccount/ShippingDetails';
 import BillingDetails from './MyAccount/BillingDetails';
+import LoyaltyCard from './MyAccount/LoyaltyCard';
 import MyNewsletter from './MyAccount/MyNewsletter';
 import OrderHistory from './MyAccount/OrderHistory';
-import {
-  mapMobileObserver,
-  unMapMobileObserver
-} from '@storefront-ui/vue/src/utilities/mobile-observer.js';
+import MyReviews from './MyAccount/MyReviews';
 
 export default {
   name: 'MyAccount',
@@ -61,47 +61,33 @@ export default {
     MyProfile,
     ShippingDetails,
     BillingDetails,
+    LoyaltyCard,
     MyNewsletter,
-    OrderHistory
+    OrderHistory,
+    MyReviews
   },
-  middleware: [
-    'is-authenticated'
-  ],
   setup(props, context) {
-    const route = useRoute();
-    const router = useRouter();
-
+    const { $router, $route } = context.root;
     const { logout } = useUser();
-    const isMobile = computed(() => mapMobileObserver().isMobile.get());
     const activePage = computed(() => {
-      const { pageName } = route.value.params;
+      const { pageName } = $route.params;
 
       if (pageName) {
         return (pageName.charAt(0).toUpperCase() + pageName.slice(1)).replace('-', ' ');
-      } else if (!isMobile.value) {
-        return 'My profile';
-      } else {
-        return '';
       }
+
+      return 'My profile';
     });
 
     const changeActivePage = async (title) => {
       if (title === 'Log out') {
         await logout();
-        router.push(context.root.localePath({ name: 'home' }));
+        $router.push('/');
         return;
       }
 
-      const slugifiedTitle = (title || '').toLowerCase().replace(' ', '-');
-      const transformedPath = `/my-account/${slugifiedTitle}`;
-      const localeTransformedPath = context.root.localePath(transformedPath);
-
-      router.push(localeTransformedPath);
+      $router.push(`/my-account/${(title || '').toLowerCase().replace(' ', '-')}`);
     };
-
-    onBeforeUnmount(() => {
-      unMapMobileObserver();
-    });
 
     return { changeActivePage, activePage };
   },
